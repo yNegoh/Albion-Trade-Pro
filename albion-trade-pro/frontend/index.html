@@ -5,49 +5,136 @@
 <title>Albion Trade Pro</title>
 
 <style>
-body { background:#0f172a; color:white; font-family:Arial; }
-
-header {
+body {
+  margin:0;
+  font-family:Arial;
+  background:#0f172a;
+  color:white;
   display:flex;
-  justify-content:space-between;
-  padding:15px;
-  background:#020617;
 }
 
-input { padding:6px; margin:3px; }
+/* SIDEBAR */
+.sidebar {
+  width:220px;
+  background:#020617;
+  height:100vh;
+  padding:20px;
+}
 
-button {
-  padding:6px;
-  background:#22c55e;
+.sidebar h2 {
+  margin-bottom:20px;
+}
+
+.sidebar button {
+  width:100%;
+  padding:10px;
+  margin-bottom:10px;
+  background:#1e293b;
   border:none;
   color:white;
   cursor:pointer;
 }
 
-.container { padding:20px; }
+/* MAIN */
+.main {
+  flex:1;
+  padding:20px;
+}
 
+/* TOP BAR */
+.topbar {
+  display:flex;
+  justify-content:space-between;
+  margin-bottom:20px;
+}
+
+.topbar input {
+  padding:6px;
+  margin-left:5px;
+}
+
+/* FILTROS */
+.filters input, .filters select {
+  padding:8px;
+  margin:5px;
+}
+
+/* TABLE */
+table {
+  width:100%;
+  border-collapse:collapse;
+  margin-top:20px;
+}
+
+th, td {
+  padding:10px;
+  text-align:center;
+}
+
+th {
+  background:#1e293b;
+}
+
+tr:hover {
+  background:#1e293b;
+}
+
+.lucro {
+  color:#22c55e;
+  font-weight:bold;
+}
+
+.premium {
+  background:#f59e0b;
+}
 </style>
 </head>
 
 <body>
 
-<header>
-  <div>Albion Trade Pro</div>
+<!-- MENU -->
+<div class="sidebar">
+  <h2>Albion Trade</h2>
 
-  <div>
-    <input id="user" placeholder="Usuário">
-    <input id="pass" type="password" placeholder="Senha">
+  <button onclick="buscar()">📊 Mercado</button>
+  <button onclick="virarPremium()" class="premium">💎 Premium</button>
+</div>
 
-    <button onclick="login()">Login</button>
-    <button onclick="register()">Cadastrar</button>
+<!-- CONTEUDO -->
+<div class="main">
+
+  <!-- TOPO -->
+  <div class="topbar">
+    <div>
+      <input id="search" placeholder="Buscar item">
+      <select id="buyCity"></select>
+      <select id="sellCity"></select>
+      <input id="qty" type="number" value="1" min="1">
+    </div>
+
+    <div>
+      <input id="user" placeholder="Usuário">
+      <input id="pass" type="password" placeholder="Senha">
+      <button onclick="login()">Login</button>
+      <button onclick="register()">Cadastrar</button>
+    </div>
   </div>
-</header>
 
-<div class="container">
-
-<button onclick="buscar()">Buscar Lucro</button>
-
-<pre id="out"></pre>
+  <!-- TABELA -->
+  <table>
+    <thead>
+      <tr>
+        <th>Item</th>
+        <th>Compra</th>
+        <th>Venda</th>
+        <th>Preço Compra</th>
+        <th>Preço Venda</th>
+        <th>Lucro</th>
+        <th>Total</th>
+      </tr>
+    </thead>
+    <tbody id="tabela"></tbody>
+  </table>
 
 </div>
 
@@ -55,14 +142,16 @@ button {
 
 const API = "https://albion-trade-pro-ogaq.onrender.com";
 let token = localStorage.getItem("token") || "";
+let dados = [];
 
+// LOGIN
 async function login(){
   const res = await fetch(API+"/login",{
     method:"POST",
     headers:{"Content-Type":"application/json"},
     body:JSON.stringify({
-      username: user.value,
-      password: pass.value
+      username:user.value,
+      password:pass.value
     })
   });
 
@@ -75,31 +164,132 @@ async function login(){
   token = data.token;
   localStorage.setItem("token", token);
 
-  alert("Logado: "+data.plan);
+  alert("Logado como "+data.plan);
 }
 
+// CADASTRO
 async function register(){
   await fetch(API+"/register",{
     method:"POST",
     headers:{"Content-Type":"application/json"},
     body:JSON.stringify({
-      username: user.value,
-      password: pass.value
+      username:user.value,
+      password:pass.value
     })
   });
 
   alert("Criado!");
 }
 
+// FORMATAR NUMERO
+function format(n){
+  return n.toLocaleString("pt-BR");
+}
+
+// FORMATAR ITEM
+function formatItem(item){
+
+  let tier = item.match(/T(\d)/)[1];
+  let enchant = item.includes("@") ? "." + item.split("@")[1] : "";
+
+  let base = item.split("_").slice(1).join("_");
+
+  const nomes = {
+    BAG:"Bolsa",
+    CAPE:"Capa",
+    ORE:"Minério",
+    WOOD:"Madeira",
+    STONE:"Pedra",
+    FIBER:"Fibra",
+    HIDE:"Couro"
+  };
+
+  return `${nomes[base] || base} ${tier}${enchant}`;
+}
+
+// CIDADES FIXAS
+const cidades = [
+  "Bridgewatch","Martlock","Lymhurst",
+  "Fort Sterling","Thetford","Caerleon","Black Market"
+];
+
+// PREENCHER
+function preencherCidades(){
+  buyCity.innerHTML = `<option value="">Compra</option>` +
+    cidades.map(c=>`<option>${c}</option>`).join("");
+
+  sellCity.innerHTML = `<option value="">Venda</option>` +
+    cidades.map(c=>`<option>${c}</option>`).join("");
+}
+
+// BUSCAR
 async function buscar(){
+
+  if(!token){
+    alert("Faça login");
+    return;
+  }
 
   const res = await fetch(API+"/scanner",{
     headers:{Authorization:token}
   });
 
-  const data = await res.json();
+  dados = await res.json();
 
-  out.innerText = JSON.stringify(data,null,2);
+  preencherCidades();
+  render();
+}
+
+// RENDER
+function render(){
+
+  const search = document.getElementById("search").value.toLowerCase();
+  const buy = buyCity.value;
+  const sell = sellCity.value;
+  const qty = parseInt(qtyInput.value) || 1;
+
+  tabela.innerHTML = "";
+
+  let filtrado = dados.filter(i =>
+    i.item.toLowerCase().includes(search) &&
+    (!buy || i.buyCity === buy) &&
+    (!sell || i.sellCity === sell)
+  );
+
+  filtrado.forEach(i => {
+
+    const total = i.lucro * qty;
+
+    tabela.innerHTML += `
+    <tr>
+      <td>${formatItem(i.item)}</td>
+      <td>${i.buyCity}</td>
+      <td>${i.sellCity}</td>
+      <td>${format(i.buyPrice)}</td>
+      <td>${format(i.sellPrice)}</td>
+      <td class="lucro">${format(i.lucro)}</td>
+      <td class="lucro">${format(total)}</td>
+    </tr>`;
+  });
+}
+
+// PREMIUM
+function virarPremium(){
+  alert("Integração com Hotmart aqui");
+}
+
+// EVENTOS
+search.addEventListener("input", render);
+buyCity.addEventListener("change", render);
+sellCity.addEventListener("change", render);
+qtyInput.addEventListener("input", render);
+
+// INIT
+const qtyInput = document.getElementById("qty");
+
+if(token){
+  preencherCidades();
+  buscar();
 }
 
 </script>
