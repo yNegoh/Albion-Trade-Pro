@@ -1,84 +1,94 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-  <meta charset="UTF-8">
-  <title>Albion Trade Pro</title>
+<meta charset="UTF-8">
+<title>Albion Trade Pro</title>
 
-  <style>
-    body {
-      margin: 0;
-      font-family: Arial;
-      background: #0f172a;
-      color: white;
-    }
+<style>
+body {
+  margin: 0;
+  font-family: Arial;
+  background: #0f172a;
+  color: white;
+}
 
-    header {
-      background: #020617;
-      padding: 15px;
-      text-align: center;
-      font-size: 22px;
-      font-weight: bold;
-    }
+header {
+  background: #020617;
+  padding: 15px;
+  text-align: center;
+  font-size: 22px;
+  font-weight: bold;
+}
 
-    .container {
-      padding: 20px;
-    }
+.container {
+  padding: 20px;
+}
 
-    .login {
-      margin-bottom: 20px;
-    }
+.controls {
+  margin-bottom: 20px;
+}
 
-    input {
-      padding: 10px;
-      border-radius: 6px;
-      border: none;
-      margin-right: 10px;
-    }
+input, select {
+  padding: 10px;
+  border-radius: 6px;
+  border: none;
+  margin-right: 10px;
+}
 
-    button {
-      padding: 10px 15px;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      background: #22c55e;
-      color: white;
-      font-weight: bold;
-    }
+button {
+  padding: 10px 15px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  background: #22c55e;
+  color: white;
+  font-weight: bold;
+}
 
-    button:hover {
-      opacity: 0.9;
-    }
+button:hover {
+  opacity: 0.9;
+}
 
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 20px;
-      background: #020617;
-    }
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+  background: #020617;
+}
 
-    th, td {
-      padding: 12px;
-      text-align: center;
-    }
+th, td {
+  padding: 12px;
+  text-align: center;
+}
 
-    th {
-      background: #1e293b;
-    }
+th {
+  background: #1e293b;
+}
 
-    tr:nth-child(even) {
-      background: #020617;
-    }
+tr:hover {
+  background: #1e293b;
+}
 
-    .lucro {
-      color: #22c55e;
-      font-weight: bold;
-    }
+.lucro {
+  color: #22c55e;
+  font-weight: bold;
+}
 
-    .prejuizo {
-      color: #ef4444;
-    }
+.badge {
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+}
 
-  </style>
+.high { background: #22c55e; }
+.medium { background: #facc15; color: black; }
+.low { background: #ef4444; }
+
+.loading {
+  text-align: center;
+  margin-top: 20px;
+}
+</style>
 </head>
 
 <body>
@@ -87,24 +97,36 @@
 
 <div class="container">
 
-  <div class="login">
-    <input id="user" placeholder="Seu nome">
-    <button onclick="login()">Login</button>
-    <button onclick="buscar()">Atualizar Lucros</button>
-  </div>
+<div class="controls">
+  <input id="user" placeholder="Seu nome">
+  <button onclick="login()">Login</button>
 
-  <table id="tabela">
-    <thead>
-      <tr>
-        <th>Item</th>
-        <th>Comprar em</th>
-        <th>Vender em</th>
-        <th>Lucro</th>
-        <th>%</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
+  <select id="minProfit">
+    <option value="0">Lucro mínimo</option>
+    <option value="5">5%</option>
+    <option value="10">10%</option>
+    <option value="20">20%</option>
+  </select>
+
+  <button onclick="buscar()">Buscar</button>
+  <button onclick="topLucro()">🔥 Mais Lucro</button>
+</div>
+
+<div class="loading" id="loading"></div>
+
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Compra</th>
+<th>Venda</th>
+<th>Lucro</th>
+<th>%</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody id="tabela"></tbody>
+</table>
 
 </div>
 
@@ -112,8 +134,9 @@
 
 const API = "https://albion-trade-pro-ogaq.onrender.com";
 
-let token = "";
+let token = localStorage.getItem("token") || "";
 
+// AUTO LOGIN
 async function login() {
   const username = document.getElementById("user").value;
 
@@ -125,34 +148,71 @@ async function login() {
 
   const data = await res.json();
   token = data.token;
+  localStorage.setItem("token", token);
 
-  alert("Login realizado!");
+  alert("Logado!");
 }
 
+// TRADUZ ITEM
+function formatItem(item) {
+  return item.replace("_", " ");
+}
+
+// BADGE
+function getBadge(p) {
+  if (p > 20) return '<span class="badge high">Alta</span>';
+  if (p > 10) return '<span class="badge medium">Média</span>';
+  return '<span class="badge low">Baixa</span>';
+}
+
+// BUSCAR
 async function buscar() {
+
+  document.getElementById("loading").innerText = "Carregando...";
+
   const res = await fetch(API + "/scanner", {
     headers: { Authorization: token }
   });
 
-  const data = await res.json();
+  let data = await res.json();
 
-  const tbody = document.querySelector("#tabela tbody");
-  tbody.innerHTML = "";
+  // FILTRO FRONT
+  const min = document.getElementById("minProfit").value;
+  data = data.filter(i => i.percentual >= min);
+
+  render(data);
+
+  document.getElementById("loading").innerText = "";
+}
+
+// TOP LUCRO
+async function topLucro() {
+  await buscar();
+}
+
+// RENDER
+function render(data) {
+
+  const tabela = document.getElementById("tabela");
+  tabela.innerHTML = "";
 
   data.forEach(item => {
-    const row = `
+
+    tabela.innerHTML += `
       <tr>
-        <td>${item.item}</td>
+        <td>${formatItem(item.item)}</td>
         <td>${item.buyCity}</td>
         <td>${item.sellCity}</td>
         <td class="lucro">${item.lucro}</td>
         <td class="lucro">${item.percentual}%</td>
+        <td>${getBadge(item.percentual)}</td>
       </tr>
     `;
-
-    tbody.innerHTML += row;
   });
 }
+
+// AUTO LOAD
+if (token) buscar();
 
 </script>
 
