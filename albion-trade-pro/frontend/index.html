@@ -24,40 +24,25 @@ header {
   padding: 20px;
 }
 
-.controls {
-  margin-bottom: 20px;
-}
-
-input {
-  padding: 10px;
-  border-radius: 6px;
-  border: none;
-  margin-right: 10px;
-}
-
 button {
-  padding: 10px 15px;
+  padding: 10px;
+  margin: 5px;
   border: none;
   border-radius: 6px;
-  cursor: pointer;
   background: #22c55e;
   color: white;
-  font-weight: bold;
-}
-
-button:hover {
-  opacity: 0.9;
+  cursor: pointer;
 }
 
 table {
   width: 100%;
-  border-collapse: collapse;
   margin-top: 20px;
+  border-collapse: collapse;
   background: #020617;
 }
 
 th, td {
-  padding: 12px;
+  padding: 10px;
   text-align: center;
 }
 
@@ -73,22 +58,6 @@ tr:hover {
   color: #22c55e;
   font-weight: bold;
 }
-
-.badge {
-  padding: 5px 10px;
-  border-radius: 6px;
-  font-size: 12px;
-}
-
-.high { background: #22c55e; }
-.medium { background: #facc15; color: black; }
-.low { background: #ef4444; }
-
-.loading {
-  text-align: center;
-  margin-top: 20px;
-  font-size: 18px;
-}
 </style>
 </head>
 
@@ -98,14 +67,9 @@ tr:hover {
 
 <div class="container">
 
-<div class="controls">
-  <input id="user" placeholder="Seu nome">
-  <button onclick="login()">Login</button>
-  <button onclick="buscar()">Atualizar</button>
-  <button onclick="topLucro()">🔥 Mais Lucro</button>
-</div>
-
-<div class="loading" id="loading"></div>
+<input id="user" placeholder="Seu nome">
+<button onclick="login()">Login</button>
+<button onclick="buscar()">Atualizar</button>
 
 <table>
 <thead>
@@ -115,8 +79,6 @@ tr:hover {
 <th>Venda</th>
 <th>Lucro</th>
 <th>%</th>
-<th>Status</th>
-<th>Liquidez</th>
 </tr>
 </thead>
 <tbody id="tabela"></tbody>
@@ -127,7 +89,6 @@ tr:hover {
 <script>
 
 const API = "https://albion-trade-pro-ogaq.onrender.com";
-
 let token = localStorage.getItem("token") || "";
 
 // LOGIN
@@ -144,69 +105,59 @@ async function login() {
   token = data.token;
   localStorage.setItem("token", token);
 
-  alert("Login realizado!");
+  alert("Logado!");
 }
 
 // FORMATAR ITEM
 function formatItem(item) {
-  return item.replaceAll("_", " ");
-}
 
-// BADGE STATUS
-function getBadge(p) {
-  p = parseFloat(p);
+  let tier = item.match(/T(\d)/)[1];
+  let enchant = item.includes("@") ? "." + item.split("@")[1] : "";
 
-  if (p > 20) return '<span class="badge high">Alta</span>';
-  if (p > 10) return '<span class="badge medium">Média</span>';
-  return '<span class="badge low">Baixa</span>';
-}
+  let nome = item.split("_").slice(1).join("_");
 
-// LIQUIDEZ
-function getLiquidez(p) {
-  p = parseFloat(p);
+  const traducoes = {
+    "2H_SWORD": "Espada Longa",
+    "BAG": "Bolsa",
+    "CAPE": "Capa",
+    "WOOD": "Madeira",
+    "STONE": "Pedra",
+    "FIBER": "Fibra",
+    "HIDE": "Couro",
+    "ORE": "Minério",
+    "PLANKS": "Tábuas",
+    "METALBAR": "Barra de Metal",
+    "LEATHER": "Couro Tratado",
+    "CLOTH": "Tecido",
+    "STONEBLOCK": "Bloco de Pedra",
+    "POTION_HEAL": "Poção de Cura",
+    "POTION_ENERGY": "Poção de Energia",
+    "FOOD_PIE": "Torta",
+    "FOOD_SALAD": "Salada"
+  };
 
-  if (p > 20) return "🐢 Baixa";
-  if (p > 10) return "⚡ Média";
-  return "🔥 Alta";
-}
-
-// BUSCAR DADOS
-async function buscar() {
-
-  if (!token) {
-    alert("Faça login primeiro!");
-    return;
+  for (let key in traducoes) {
+    if (nome.includes(key)) {
+      nome = traducoes[key];
+    }
   }
 
-  document.getElementById("loading").innerText = "Carregando oportunidades...";
+  return `${nome} ${tier}${enchant}`;
+}
+
+// BUSCAR
+async function buscar() {
 
   const res = await fetch(API + "/scanner", {
     headers: { Authorization: token }
   });
 
-  let data = await res.json();
-
-  // ORDENA POR MAIOR LUCRO
-  data.sort((a, b) => b.lucro - a.lucro);
-
-  render(data);
-
-  document.getElementById("loading").innerText = "";
-}
-
-// TOP LUCRO
-async function topLucro() {
-  await buscar();
-}
-
-// RENDER
-function render(data) {
+  const data = await res.json();
 
   const tabela = document.getElementById("tabela");
   tabela.innerHTML = "";
 
   data.forEach(item => {
-
     tabela.innerHTML += `
       <tr>
         <td>${formatItem(item.item)}</td>
@@ -214,17 +165,12 @@ function render(data) {
         <td>${item.sellCity}</td>
         <td class="lucro">${item.lucro}</td>
         <td class="lucro">${item.percentual}%</td>
-        <td>${getBadge(item.percentual)}</td>
-        <td>${getLiquidez(item.percentual)}</td>
       </tr>
     `;
   });
 }
 
-// AUTO LOAD
-if (token) {
-  buscar();
-}
+if (token) buscar();
 
 </script>
 
