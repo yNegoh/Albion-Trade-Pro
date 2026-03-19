@@ -10,7 +10,6 @@ app.use(express.json());
 const PORT = process.env.PORT || 3001;
 const SECRET = "albion-secret";
 
-// ROTA BASE (IMPORTANTE PRO RENDER)
 app.get("/", (req, res) => {
   res.send("Albion Trade Pro API rodando 🚀");
 });
@@ -43,43 +42,61 @@ function auth(req, res, next) {
   }
 }
 
-// FETCH SEGURO (EVITA CRASH)
+// BUSCAR PREÇOS
 async function fetchPrices(item) {
   try {
     const url = `https://www.albion-online-data.com/api/v2/stats/prices/${item}.json`;
     const res = await axios.get(url, { timeout: 5000 });
     return res.data;
-  } catch (err) {
-    console.log("Erro ao buscar item:", item);
+  } catch {
     return [];
   }
 }
 
-// CALCULO
+// FILTRO INTELIGENTE
+function isValidTrade(buy, sell) {
+
+  if (!buy.sell_price_min || !sell.buy_price_max) return false;
+
+  if (buy.sell_price_min <= 0 || sell.buy_price_max <= 0) return false;
+
+  // PREÇO BUGADO
+  if (sell.buy_price_max > buy.sell_price_min * 10) return false;
+
+  return true;
+}
+
+// CALCULO PROFISSIONAL
 function calcularFlip(data, item) {
   let oportunidades = [];
 
   for (let buy of data) {
     for (let sell of data) {
-      if (
-        buy.city !== sell.city &&
-        buy.sell_price_min > 0 &&
-        sell.buy_price_max > 0
-      ) {
-        const lucro = sell.buy_price_max - buy.sell_price_min;
-        const taxa = sell.buy_price_max * 0.065;
-        const liquido = lucro - taxa;
 
-        if (liquido > 0) {
-          oportunidades.push({
-            item,
-            buyCity: buy.city,
-            sellCity: sell.city,
-            lucro: Math.round(liquido),
-            percentual: ((liquido / buy.sell_price_min) * 100).toFixed(2)
-          });
-        }
-      }
+      if (buy.city === sell.city) continue;
+
+      if (!isValidTrade(buy, sell)) continue;
+
+      const precoCompra = buy.sell_price_min;
+      const precoVenda = sell.buy_price_max;
+
+      const taxa = precoVenda * 0.065;
+      const lucroBruto = precoVenda - precoCompra;
+      const lucroLiquido = lucroBruto - taxa;
+
+      const percentual = (lucroLiquido / precoCompra) * 100;
+
+      // BLOQUEIOS
+      if (lucroLiquido <= 0) continue;
+      if (percentual > 300) continue;
+
+      oportunidades.push({
+        item,
+        buyCity: buy.city,
+        sellCity: sell.city,
+        lucro: Math.round(lucroLiquido),
+        percentual: percentual.toFixed(2)
+      });
     }
   }
 
@@ -88,7 +105,15 @@ function calcularFlip(data, item) {
 
 // SCANNER
 app.get("/scanner", auth, async (req, res) => {
-  const items = ["T4_BAG", "T5_BAG", "T6_BAG"];
+
+  const items = [
+    "T4_BAG",
+    "T5_BAG",
+    "T6_BAG",
+    "T4_CAPE",
+    "T5_CAPE",
+    "T6_CAPE"
+  ];
 
   let resultado = [];
 
@@ -98,12 +123,12 @@ app.get("/scanner", auth, async (req, res) => {
     resultado.push(...ops);
   }
 
+  resultado.sort((a, b) => b.lucro - a.lucro);
+
   // FREE LIMIT
   if (req.user.plan === "free") {
     resultado = resultado.filter(op => op.percentual <= 10);
   }
-
-  resultado.sort((a, b) => b.lucro - a.lucro);
 
   res.json(resultado.slice(0, 50));
 });
