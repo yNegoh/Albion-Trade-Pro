@@ -1,75 +1,52 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html>
 <head>
 <meta charset="UTF-8">
 <title>Albion Trade Pro</title>
 
 <style>
-body {
-  margin: 0;
-  font-family: Arial;
-  background: #0f172a;
-  color: white;
-}
+body { background:#0f172a; color:white; font-family:Arial; }
+.container { padding:20px; }
 
-header {
-  background: #020617;
-  padding: 15px;
-  text-align: center;
-  font-size: 22px;
-  font-weight: bold;
-}
-
-.container {
-  padding: 20px;
-}
-
-button {
-  padding: 10px;
-  margin: 5px;
-  border: none;
-  border-radius: 6px;
-  background: #22c55e;
-  color: white;
-  cursor: pointer;
+input, select {
+  padding:8px;
+  margin:5px;
 }
 
 table {
-  width: 100%;
-  margin-top: 20px;
+  width:100%;
+  margin-top:20px;
   border-collapse: collapse;
-  background: #020617;
 }
 
 th, td {
-  padding: 10px;
-  text-align: center;
+  padding:10px;
+  text-align:center;
 }
 
-th {
-  background: #1e293b;
-}
+th { background:#1e293b; }
+tr:hover { background:#1e293b; }
 
-tr:hover {
-  background: #1e293b;
-}
-
-.lucro {
-  color: #22c55e;
-  font-weight: bold;
-}
+.lucro { color:#22c55e; }
 </style>
 </head>
 
 <body>
 
-<header>Albion Trade Pro</header>
-
 <div class="container">
 
-<input id="user" placeholder="Seu nome">
+<input id="user" placeholder="Nome">
 <button onclick="login()">Login</button>
-<button onclick="buscar()">Atualizar</button>
+
+<br>
+
+<input id="search" placeholder="Buscar item">
+<select id="buyCity"></select>
+<select id="sellCity"></select>
+
+<input id="qty" type="number" placeholder="Qtd" value="1">
+
+<button onclick="buscar()">Buscar</button>
 
 <table>
 <thead>
@@ -77,8 +54,10 @@ tr:hover {
 <th>Item</th>
 <th>Compra</th>
 <th>Venda</th>
-<th>Lucro</th>
-<th>%</th>
+<th>Preço Compra</th>
+<th>Preço Venda</th>
+<th>Lucro Unit</th>
+<th>Lucro Total</th>
 </tr>
 </thead>
 <tbody id="tabela"></tbody>
@@ -90,92 +69,82 @@ tr:hover {
 
 const API = "https://albion-trade-pro-ogaq.onrender.com";
 let token = localStorage.getItem("token") || "";
+let dados = [];
 
-// LOGIN
-async function login() {
-  const username = document.getElementById("user").value;
-
-  const res = await fetch(API + "/login", {
-    method: "POST",
-    headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({ username })
-  });
-
+async function login(){
+  const res = await fetch(API + "/login",{method:"POST"});
   const data = await res.json();
   token = data.token;
   localStorage.setItem("token", token);
-
-  alert("Logado!");
 }
 
-// FORMATAR ITEM
-function formatItem(item) {
-
-  let tier = item.match(/T(\d)/)[1];
-  let enchant = item.includes("@") ? "." + item.split("@")[1] : "";
-
-  let nome = item.split("_").slice(1).join("_");
-
-  const traducoes = {
-    "2H_SWORD": "Espada Longa",
-    "BAG": "Bolsa",
-    "CAPE": "Capa",
-    "WOOD": "Madeira",
-    "STONE": "Pedra",
-    "FIBER": "Fibra",
-    "HIDE": "Couro",
-    "ORE": "Minério",
-    "PLANKS": "Tábuas",
-    "METALBAR": "Barra de Metal",
-    "LEATHER": "Couro Tratado",
-    "CLOTH": "Tecido",
-    "STONEBLOCK": "Bloco de Pedra",
-    "POTION_HEAL": "Poção de Cura",
-    "POTION_ENERGY": "Poção de Energia",
-    "FOOD_PIE": "Torta",
-    "FOOD_SALAD": "Salada"
-  };
-
-  for (let key in traducoes) {
-    if (nome.includes(key)) {
-      nome = traducoes[key];
-    }
-  }
-
-  return `${nome} ${tier}${enchant}`;
+function formatItem(i){
+  return i.replace("_"," ");
 }
 
-// BUSCAR
-async function buscar() {
+function render(){
 
-  if (!token) {
-    alert("Faça login primeiro!");
-    return;
-  }
-
-  const res = await fetch(API + "/scanner", {
-    headers: { Authorization: token }
-  });
-
-  const data = await res.json();
+  const search = document.getElementById("search").value.toLowerCase();
+  const buyCity = document.getElementById("buyCity").value;
+  const sellCity = document.getElementById("sellCity").value;
+  const qty = parseInt(document.getElementById("qty").value) || 1;
 
   const tabela = document.getElementById("tabela");
   tabela.innerHTML = "";
 
-  data.forEach(item => {
+  let filtrado = dados.filter(i => 
+    i.item.toLowerCase().includes(search) &&
+    (!buyCity || i.buyCity === buyCity) &&
+    (!sellCity || i.sellCity === sellCity)
+  );
+
+  filtrado.forEach(i => {
+
+    const lucroTotal = i.lucro * qty;
+
     tabela.innerHTML += `
-      <tr>
-        <td>${formatItem(item.item)}</td>
-        <td>${item.buyCity}</td>
-        <td>${item.sellCity}</td>
-        <td class="lucro">${item.lucro}</td>
-        <td class="lucro">${item.percentual}%</td>
-      </tr>
-    `;
+    <tr>
+      <td>${formatItem(i.item)}</td>
+      <td>${i.buyCity}</td>
+      <td>${i.sellCity}</td>
+      <td>${i.buyPrice}</td>
+      <td>${i.sellPrice}</td>
+      <td class="lucro">${i.lucro}</td>
+      <td class="lucro">${lucroTotal}</td>
+    </tr>`;
   });
 }
 
-if (token) buscar();
+async function buscar(){
+
+  const res = await fetch(API + "/scanner", {
+    headers:{ Authorization: token }
+  });
+
+  dados = await res.json();
+
+  preencherCidades();
+  render();
+}
+
+function preencherCidades(){
+
+  const buys = [...new Set(dados.map(i => i.buyCity))];
+  const sells = [...new Set(dados.map(i => i.sellCity))];
+
+  document.getElementById("buyCity").innerHTML =
+    `<option value="">Compra</option>` + buys.map(c=>`<option>${c}</option>`).join("");
+
+  document.getElementById("sellCity").innerHTML =
+    `<option value="">Venda</option>` + sells.map(c=>`<option>${c}</option>`).join("");
+}
+
+document.getElementById("search").addEventListener("input", render);
+document.getElementById("buyCity").addEventListener("change", render);
+document.getElementById("sellCity").addEventListener("change", render);
+document.getElementById("qty").addEventListener("input", render);
+
+if(token) buscar();
 
 </script>
 
