@@ -10,7 +10,6 @@ app.use(express.json());
 const PORT = process.env.PORT || 3001;
 const SECRET = "albion-secret";
 
-// ROTA BASE
 app.get("/", (req, res) => {
   res.send("Albion Trade Pro API rodando 🚀");
 });
@@ -43,26 +42,15 @@ function auth(req, res, next) {
   }
 }
 
-// GERAR ITENS COM ENCANTAMENTO
+// GERAR ITENS
 function gerarItens() {
 
   const bases = [
-    "BAG",
-    "CAPE",
-    "WOOD",
-    "STONE",
-    "FIBER",
-    "HIDE",
-    "ORE",
-    "PLANKS",
-    "METALBAR",
-    "LEATHER",
-    "CLOTH",
-    "STONEBLOCK",
-    "POTION_HEAL",
-    "POTION_ENERGY",
-    "FOOD_PIE",
-    "FOOD_SALAD"
+    "2H_SWORD","BAG","CAPE","WOOD","STONE","FIBER",
+    "HIDE","ORE","PLANKS","METALBAR",
+    "LEATHER","CLOTH","STONEBLOCK",
+    "POTION_HEAL","POTION_ENERGY",
+    "FOOD_PIE","FOOD_SALAD"
   ];
 
   const tiers = [4,5,6,7];
@@ -81,25 +69,28 @@ function gerarItens() {
   return items;
 }
 
-// BUSCAR PREÇOS
-async function fetchPrices(item) {
-  try {
+// FETCH PARALELO
+async function fetchAllPrices(items) {
+
+  const requests = items.map(item => {
     const url = `https://www.albion-online-data.com/api/v2/stats/prices/${item}.json`;
-    const res = await axios.get(url, { timeout: 5000 });
-    return res.data;
-  } catch {
-    return [];
-  }
+
+    return axios.get(url, { timeout: 5000 })
+      .then(res => ({ item, data: res.data }))
+      .catch(() => null);
+  });
+
+  const results = await Promise.all(requests);
+  return results.filter(r => r !== null);
 }
 
-// VALIDAR TRADE
+// VALIDAÇÃO
 function isValidTrade(buy, sell) {
 
   if (!buy.sell_price_min || !sell.buy_price_max) return false;
-
   if (buy.sell_price_min <= 0 || sell.buy_price_max <= 0) return false;
 
-  // PREÇO BUGADO
+  // evitar preço bugado
   if (sell.buy_price_max > buy.sell_price_min * 10) return false;
 
   return true;
@@ -107,33 +98,29 @@ function isValidTrade(buy, sell) {
 
 // CALCULO
 function calcularFlip(data, item) {
+
   let oportunidades = [];
 
   for (let buy of data) {
     for (let sell of data) {
 
       if (buy.city === sell.city) continue;
-
       if (!isValidTrade(buy, sell)) continue;
 
-      const precoCompra = buy.sell_price_min;
-      const precoVenda = sell.buy_price_max;
+      const compra = buy.sell_price_min;
+      const venda = sell.buy_price_max;
 
-      const taxa = precoVenda * 0.065;
-      const lucroBruto = precoVenda - precoCompra;
-      const lucroLiquido = lucroBruto - taxa;
+      const taxa = venda * 0.065;
+      const lucro = venda - compra - taxa;
+      const percentual = (lucro / compra) * 100;
 
-      const percentual = (lucroLiquido / precoCompra) * 100;
-
-      // FILTROS
-      if (lucroLiquido <= 0) continue;
-      if (percentual > 300) continue;
+      if (lucro <= 0 || percentual > 300) continue;
 
       oportunidades.push({
         item,
         buyCity: buy.city,
         sellCity: sell.city,
-        lucro: Math.round(lucroLiquido),
+        lucro: Math.round(lucro),
         percentual: percentual.toFixed(2)
       });
     }
@@ -146,18 +133,17 @@ function calcularFlip(data, item) {
 app.get("/scanner", auth, async (req, res) => {
 
   const items = gerarItens();
+  const allData = await fetchAllPrices(items);
 
   let resultado = [];
 
-  for (let item of items) {
-    const data = await fetchPrices(item);
-    const ops = calcularFlip(data, item);
+  for (let obj of allData) {
+    const ops = calcularFlip(obj.data, obj.item);
     resultado.push(...ops);
   }
 
   resultado.sort((a, b) => b.lucro - a.lucro);
 
-  // FREE LIMIT
   if (req.user.plan === "free") {
     resultado = resultado.filter(op => op.percentual <= 10);
   }
