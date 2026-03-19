@@ -148,6 +148,11 @@ function formatItem(item) {
 // BUSCAR
 async function buscar() {
 
+  if (!token) {
+    alert("Faça login primeiro!");
+    return;
+  }
+
   const res = await fetch(API + "/scanner", {
     headers: { Authorization: token }
   });
