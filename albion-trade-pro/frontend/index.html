@@ -1,20 +1,116 @@
 <!DOCTYPE html>
-<html>
+<html lang="pt-br">
 <head>
+  <meta charset="UTF-8">
   <title>Albion Trade Pro</title>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial;
+      background: #0f172a;
+      color: white;
+    }
+
+    header {
+      background: #020617;
+      padding: 15px;
+      text-align: center;
+      font-size: 22px;
+      font-weight: bold;
+    }
+
+    .container {
+      padding: 20px;
+    }
+
+    .login {
+      margin-bottom: 20px;
+    }
+
+    input {
+      padding: 10px;
+      border-radius: 6px;
+      border: none;
+      margin-right: 10px;
+    }
+
+    button {
+      padding: 10px 15px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      background: #22c55e;
+      color: white;
+      font-weight: bold;
+    }
+
+    button:hover {
+      opacity: 0.9;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+      background: #020617;
+    }
+
+    th, td {
+      padding: 12px;
+      text-align: center;
+    }
+
+    th {
+      background: #1e293b;
+    }
+
+    tr:nth-child(even) {
+      background: #020617;
+    }
+
+    .lucro {
+      color: #22c55e;
+      font-weight: bold;
+    }
+
+    .prejuizo {
+      color: #ef4444;
+    }
+
+  </style>
 </head>
+
 <body>
 
-<h1>Albion Trade Pro</h1>
+<header>Albion Trade Pro</header>
 
-<input id="user" placeholder="Seu nome">
-<button onclick="login()">Login</button>
+<div class="container">
 
-<button onclick="buscar()">Buscar Lucros</button>
+  <div class="login">
+    <input id="user" placeholder="Seu nome">
+    <button onclick="login()">Login</button>
+    <button onclick="buscar()">Atualizar Lucros</button>
+  </div>
 
-<pre id="output"></pre>
+  <table id="tabela">
+    <thead>
+      <tr>
+        <th>Item</th>
+        <th>Comprar em</th>
+        <th>Vender em</th>
+        <th>Lucro</th>
+        <th>%</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+</div>
 
 <script>
+
+const API = "https://albion-trade-pro-ogaq.onrender.com";
 
 let token = "";
 
@@ -23,28 +119,40 @@ async function login() {
 
   const res = await fetch(API + "/login", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {"Content-Type": "application/json"},
     body: JSON.stringify({ username })
   });
 
   const data = await res.json();
   token = data.token;
 
-  alert("Logado!");
+  alert("Login realizado!");
 }
 
 async function buscar() {
   const res = await fetch(API + "/scanner", {
-    headers: {
-      Authorization: token
-    }
+    headers: { Authorization: token }
   });
 
   const data = await res.json();
-  document.getElementById("output").innerText = JSON.stringify(data, null, 2);
-}
 
-const API = "https://albion-trade-pro-ogaq.onrender.com";
+  const tbody = document.querySelector("#tabela tbody");
+  tbody.innerHTML = "";
+
+  data.forEach(item => {
+    const row = `
+      <tr>
+        <td>${item.item}</td>
+        <td>${item.buyCity}</td>
+        <td>${item.sellCity}</td>
+        <td class="lucro">${item.lucro}</td>
+        <td class="lucro">${item.percentual}%</td>
+      </tr>
+    `;
+
+    tbody.innerHTML += row;
+  });
+}
 
 </script>
 
