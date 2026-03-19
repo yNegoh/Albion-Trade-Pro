@@ -1,0 +1,52 @@
+!DOCTYPE html
+html
+head
+  titleAlbion Trade Protitle
+head
+body
+
+h1Albion Trade Proh1
+
+input id=user placeholder=Seu nome
+button onclick=login()Loginbutton
+
+button onclick=buscar()Buscar Lucrosbutton
+
+pre id=outputpre
+
+script
+
+let token = ;
+
+async function login() {
+  const username = document.getElementById(user).value;
+
+  const res = await fetch(API + login, {
+    method POST,
+    headers { Content-Type applicationjson },
+    body JSON.stringify({ username })
+  });
+
+  const data = await res.json();
+  token = data.token;
+
+  alert(Logado!);
+}
+
+async function buscar() {
+  const res = await fetch(API + scanner, {
+    headers {
+      Authorization token
+    }
+  });
+
+  const data = await res.json();
+  document.getElementById(output).innerText = JSON.stringify(data, null, 2);
+}
+
+const API = https://albion-trade-pro-ujxv.onrender.com;
+
+script
+
+body
+html
