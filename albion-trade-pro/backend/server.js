@@ -10,61 +10,39 @@ app.use(express.json());
 const PORT = process.env.PORT || 3001;
 const SECRET = "albion-secret";
 
-// 👑 USUÁRIOS
+// USERS
 let users = [
-  {
-    username: "negoh",
-    password: "301309*Negoh",
-    plan: "premium"
-  }
+  { username: "negoh", password: "301309*Negoh", plan: "premium" }
 ];
 
 // CACHE
-let cache = {
-  data: [],
-  lastUpdate: 0
-};
-
+let cache = { data: [], lastUpdate: 0 };
 const CACHE_TIME = 1000 * 60 * 5;
 
 // LOGIN
 app.post("/login", (req, res) => {
   const { username, password } = req.body;
 
-  const user = users.find(
-    u => u.username === username && u.password === password
-  );
+  const user = users.find(u => u.username === username && u.password === password);
 
-  if (!user) {
-    return res.status(401).send("Login inválido");
-  }
+  if (!user) return res.status(401).send("Login inválido");
 
-  const token = jwt.sign(
-    { username: user.username, plan: user.plan },
-    SECRET,
-    { expiresIn: "7d" }
-  );
+  const token = jwt.sign(user, SECRET, { expiresIn: "7d" });
 
-  res.json({ token, plan: user.plan });
+  res.json({ token, username: user.username, plan: user.plan });
 });
 
-// CADASTRO (FREE)
+// REGISTER
 app.post("/register", (req, res) => {
   const { username, password } = req.body;
 
-  const exists = users.find(u => u.username === username);
-
-  if (exists) {
-    return res.status(400).send("Usuário já existe");
+  if (users.find(u => u.username === username)) {
+    return res.status(400).send("Já existe");
   }
 
-  users.push({
-    username,
-    password,
-    plan: "free"
-  });
+  users.push({ username, password, plan: "free" });
 
-  res.send("Criado!");
+  res.send("Criado");
 });
 
 // AUTH
@@ -82,25 +60,42 @@ function auth(req, res, next) {
 function gerarItens() {
   return [
     "T4_BAG","T5_BAG","T6_BAG",
-    "T4_CAPE","T5_CAPE","T6_CAPE",
-    "T4_POTION_HEAL","T5_POTION_HEAL",
-    "T4_FOOD_PIE","T5_FOOD_PIE",
-    "T4_ORE","T5_ORE","T6_ORE"
+    "T4_CAPE","T5_CAPE",
+    "T4_ORE","T5_ORE","T6_ORE",
+    "T4_WOOD","T5_WOOD",
+    "T4_STONE","T5_STONE"
   ];
 }
 
 // FETCH
 async function fetchAllPrices(items) {
-  const requests = items.map(item => {
-    const url = `https://www.albion-online-data.com/api/v2/stats/prices/${item}.json`;
-
-    return axios.get(url)
+  const reqs = items.map(item => {
+    return axios.get(`https://www.albion-online-data.com/api/v2/stats/prices/${item}.json`)
       .then(res => ({ item, data: res.data }))
       .catch(() => null);
   });
 
-  const results = await Promise.all(requests);
+  const results = await Promise.all(reqs);
   return results.filter(r => r && r.data.length);
+}
+
+// 📊 VOLUME (SIMULADO INTELIGENTE)
+function getVolume(item){
+
+  if (item.includes("ORE") || item.includes("WOOD") || item.includes("STONE")) {
+    return Math.floor(Math.random() * 20000) + 10000;
+  }
+
+  if (item.includes("BAG") || item.includes("CAPE")) {
+    return Math.floor(Math.random() * 8000) + 2000;
+  }
+
+  return Math.floor(Math.random() * 1000);
+}
+
+// 🧠 SCORE
+function getScore(lucro, volume){
+  return Math.round(lucro * 0.7 + volume * 0.3);
 }
 
 // CALCULO
@@ -125,6 +120,9 @@ function calcularFlip(data, item) {
 
       if (lucro <= 0) continue;
 
+      const volume = getVolume(item);
+      const score = getScore(lucro, volume);
+
       ops.push({
         item,
         buyCity: buy.city,
@@ -132,7 +130,9 @@ function calcularFlip(data, item) {
         buyPrice: compra,
         sellPrice: venda,
         lucro: Math.round(lucro),
-        percentual: percentual.toFixed(2)
+        percentual: percentual.toFixed(2),
+        volume,
+        score
       });
     }
   }
@@ -140,17 +140,14 @@ function calcularFlip(data, item) {
   return ops;
 }
 
-// SCANNER COM CACHE
+// SCANNER
 app.get("/scanner", auth, async (req, res) => {
 
   const now = Date.now();
 
   if (now - cache.lastUpdate < CACHE_TIME && cache.data.length) {
-    console.log("CACHE");
-    return filtrarPlano(cache.data, req.user.plan, res);
+    return res.json(cache.data);
   }
-
-  console.log("ATUALIZANDO...");
 
   const items = gerarItens();
   const allData = await fetchAllPrices(items);
@@ -161,24 +158,12 @@ app.get("/scanner", auth, async (req, res) => {
     resultado.push(...calcularFlip(obj.data, obj.item));
   }
 
-  resultado.sort((a, b) => b.lucro - a.lucro);
+  resultado.sort((a,b)=>b.score - a.score);
 
-  cache.data = resultado;
+  cache.data = resultado.slice(0,100);
   cache.lastUpdate = now;
 
-  filtrarPlano(resultado, req.user.plan, res);
+  res.json(cache.data);
 });
 
-// FILTRO DE PLANO
-function filtrarPlano(data, plan, res) {
-
-  if (plan === "free") {
-    data = data.filter(i => i.percentual <= 10);
-  }
-
-  res.json(data.slice(0, 100));
-}
-
-app.listen(PORT, () => {
-  console.log("Servidor rodando");
-});
+app.listen(PORT, ()=>console.log("Rodando 🚀"));
