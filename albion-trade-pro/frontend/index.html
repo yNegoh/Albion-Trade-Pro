@@ -1,22 +1,64 @@
 <!DOCTYPE html>
-<html>
+<html lang="pt-br">
 <head>
 <meta charset="UTF-8">
 <title>Albion Trade Pro</title>
 
 <style>
-body { background:#0f172a; color:white; font-family:Arial; }
-.container { padding:20px; }
+body {
+  margin:0;
+  font-family:Arial;
+  background:#0f172a;
+  color:white;
+}
 
-input, select {
+header {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  background:#020617;
+  padding:15px 25px;
+}
+
+.title {
+  font-size:20px;
+  font-weight:bold;
+}
+
+.login-area input {
+  padding:6px;
+}
+
+.login-area button {
+  padding:6px 10px;
+  margin-left:5px;
+  background:#22c55e;
+  border:none;
+  color:white;
+  cursor:pointer;
+}
+
+.container {
+  padding:20px;
+}
+
+.filters input, .filters select {
   padding:8px;
   margin:5px;
+}
+
+button.main {
+  padding:10px;
+  background:#22c55e;
+  border:none;
+  color:white;
+  cursor:pointer;
 }
 
 table {
   width:100%;
   margin-top:20px;
-  border-collapse: collapse;
+  border-collapse:collapse;
 }
 
 th, td {
@@ -24,29 +66,44 @@ th, td {
   text-align:center;
 }
 
-th { background:#1e293b; }
-tr:hover { background:#1e293b; }
+th {
+  background:#1e293b;
+}
 
-.lucro { color:#22c55e; }
+tr:hover {
+  background:#1e293b;
+}
+
+.lucro {
+  color:#22c55e;
+  font-weight:bold;
+}
 </style>
 </head>
 
 <body>
 
+<header>
+  <div class="title">Albion Trade Pro</div>
+
+  <div class="login-area">
+    <input id="user" placeholder="Usuário">
+    <button onclick="login()">Entrar</button>
+  </div>
+</header>
+
 <div class="container">
 
-<input id="user" placeholder="Nome">
-<button onclick="login()">Login</button>
+<div class="filters">
+  <input id="search" placeholder="Buscar item">
 
-<br>
+  <select id="buyCity"></select>
+  <select id="sellCity"></select>
 
-<input id="search" placeholder="Buscar item">
-<select id="buyCity"></select>
-<select id="sellCity"></select>
+  <input id="qty" type="number" value="1" min="1">
 
-<input id="qty" type="number" placeholder="Qtd" value="1">
-
-<button onclick="buscar()">Buscar</button>
+  <button class="main" onclick="buscar()">Atualizar</button>
+</div>
 
 <table>
 <thead>
@@ -71,17 +128,84 @@ const API = "https://albion-trade-pro-ogaq.onrender.com";
 let token = localStorage.getItem("token") || "";
 let dados = [];
 
-async function login(){
-  const res = await fetch(API + "/login",{method:"POST"});
+// LOGIN
+async function login() {
+  const username = document.getElementById("user").value;
+
+  const res = await fetch(API + "/login", {
+    method:"POST",
+    headers:{ "Content-Type":"application/json" },
+    body: JSON.stringify({ username })
+  });
+
   const data = await res.json();
   token = data.token;
   localStorage.setItem("token", token);
+
+  alert("Logado!");
 }
 
-function formatItem(i){
-  return i.replace("_"," ");
+// FORMATAR NÚMERO
+function formatNumber(num){
+  return num.toLocaleString("pt-BR");
 }
 
+// FORMATAR ITEM
+function formatItem(item){
+
+  let tier = item.match(/T(\d)/)[1];
+  let enchant = item.includes("@") ? "." + item.split("@")[1] : "";
+
+  let base = item.split("_").slice(1).join("_");
+
+  const nomes = {
+    "BAG":"Bolsa",
+    "CAPE":"Capa",
+    "WOOD":"Madeira",
+    "STONE":"Pedra",
+    "FIBER":"Fibra",
+    "HIDE":"Couro",
+    "ORE":"Minério",
+    "PLANKS":"Tábuas",
+    "METALBAR":"Barra de Metal",
+    "LEATHER":"Couro Tratado",
+    "CLOTH":"Tecido",
+    "STONEBLOCK":"Bloco de Pedra",
+    "POTION_HEAL":"Poção de Cura",
+    "POTION_ENERGY":"Poção de Energia",
+    "FOOD_PIE":"Torta",
+    "FOOD_SALAD":"Salada"
+  };
+
+  let nomeFinal = nomes[base] || base;
+
+  return `${nomeFinal} ${tier}${enchant}`;
+}
+
+// CIDADES FIXAS
+const cidades = [
+  "Bridgewatch",
+  "Martlock",
+  "Lymhurst",
+  "Fort Sterling",
+  "Thetford",
+  "Caerleon",
+  "Black Market"
+];
+
+// PREENCHER CIDADES
+function preencherCidades(){
+
+  document.getElementById("buyCity").innerHTML =
+    `<option value="">Compra</option>` +
+    cidades.map(c => `<option>${c}</option>`).join("");
+
+  document.getElementById("sellCity").innerHTML =
+    `<option value="">Venda</option>` +
+    cidades.map(c => `<option>${c}</option>`).join("");
+}
+
+// RENDER
 function render(){
 
   const search = document.getElementById("search").value.toLowerCase();
@@ -92,7 +216,7 @@ function render(){
   const tabela = document.getElementById("tabela");
   tabela.innerHTML = "";
 
-  let filtrado = dados.filter(i => 
+  let filtrado = dados.filter(i =>
     i.item.toLowerCase().includes(search) &&
     (!buyCity || i.buyCity === buyCity) &&
     (!sellCity || i.sellCity === sellCity)
@@ -107,15 +231,21 @@ function render(){
       <td>${formatItem(i.item)}</td>
       <td>${i.buyCity}</td>
       <td>${i.sellCity}</td>
-      <td>${i.buyPrice}</td>
-      <td>${i.sellPrice}</td>
-      <td class="lucro">${i.lucro}</td>
-      <td class="lucro">${lucroTotal}</td>
+      <td>${formatNumber(i.buyPrice)}</td>
+      <td>${formatNumber(i.sellPrice)}</td>
+      <td class="lucro">${formatNumber(i.lucro)}</td>
+      <td class="lucro">${formatNumber(lucroTotal)}</td>
     </tr>`;
   });
 }
 
+// BUSCAR
 async function buscar(){
+
+  if (!token){
+    alert("Faça login primeiro!");
+    return;
+  }
 
   const res = await fetch(API + "/scanner", {
     headers:{ Authorization: token }
@@ -127,24 +257,16 @@ async function buscar(){
   render();
 }
 
-function preencherCidades(){
-
-  const buys = [...new Set(dados.map(i => i.buyCity))];
-  const sells = [...new Set(dados.map(i => i.sellCity))];
-
-  document.getElementById("buyCity").innerHTML =
-    `<option value="">Compra</option>` + buys.map(c=>`<option>${c}</option>`).join("");
-
-  document.getElementById("sellCity").innerHTML =
-    `<option value="">Venda</option>` + sells.map(c=>`<option>${c}</option>`).join("");
-}
-
+// EVENTOS
 document.getElementById("search").addEventListener("input", render);
 document.getElementById("buyCity").addEventListener("change", render);
 document.getElementById("sellCity").addEventListener("change", render);
 document.getElementById("qty").addEventListener("input", render);
 
-if(token) buscar();
+if(token){
+  preencherCidades();
+  buscar();
+}
 
 </script>
 
