@@ -10,22 +10,61 @@ app.use(express.json());
 const PORT = process.env.PORT || 3001;
 const SECRET = "albion-secret";
 
+// 👑 USUÁRIOS
+let users = [
+  {
+    username: "negoh",
+    password: "301309*Negoh",
+    plan: "premium"
+  }
+];
+
 // CACHE
 let cache = {
   data: [],
   lastUpdate: 0
 };
 
-const CACHE_TIME = 1000 * 60 * 5; // 5 minutos
-
-app.get("/", (req, res) => {
-  res.send("Albion Trade Pro API rodando 🚀");
-});
+const CACHE_TIME = 1000 * 60 * 5;
 
 // LOGIN
 app.post("/login", (req, res) => {
-  const token = jwt.sign({ plan: "free" }, SECRET);
-  res.json({ token });
+  const { username, password } = req.body;
+
+  const user = users.find(
+    u => u.username === username && u.password === password
+  );
+
+  if (!user) {
+    return res.status(401).send("Login inválido");
+  }
+
+  const token = jwt.sign(
+    { username: user.username, plan: user.plan },
+    SECRET,
+    { expiresIn: "7d" }
+  );
+
+  res.json({ token, plan: user.plan });
+});
+
+// CADASTRO (FREE)
+app.post("/register", (req, res) => {
+  const { username, password } = req.body;
+
+  const exists = users.find(u => u.username === username);
+
+  if (exists) {
+    return res.status(400).send("Usuário já existe");
+  }
+
+  users.push({
+    username,
+    password,
+    plan: "free"
+  });
+
+  res.send("Criado!");
 });
 
 // AUTH
@@ -54,6 +93,7 @@ function gerarItens() {
 async function fetchAllPrices(items) {
   const requests = items.map(item => {
     const url = `https://www.albion-online-data.com/api/v2/stats/prices/${item}.json`;
+
     return axios.get(url)
       .then(res => ({ item, data: res.data }))
       .catch(() => null);
@@ -65,6 +105,7 @@ async function fetchAllPrices(items) {
 
 // CALCULO
 function calcularFlip(data, item) {
+
   let ops = [];
 
   for (let buy of data) {
@@ -105,11 +146,11 @@ app.get("/scanner", auth, async (req, res) => {
   const now = Date.now();
 
   if (now - cache.lastUpdate < CACHE_TIME && cache.data.length) {
-    console.log("USANDO CACHE");
-    return res.json(cache.data);
+    console.log("CACHE");
+    return filtrarPlano(cache.data, req.user.plan, res);
   }
 
-  console.log("ATUALIZANDO DADOS...");
+  console.log("ATUALIZANDO...");
 
   const items = gerarItens();
   const allData = await fetchAllPrices(items);
@@ -122,12 +163,22 @@ app.get("/scanner", auth, async (req, res) => {
 
   resultado.sort((a, b) => b.lucro - a.lucro);
 
-  cache.data = resultado.slice(0, 100);
+  cache.data = resultado;
   cache.lastUpdate = now;
 
-  res.json(cache.data);
+  filtrarPlano(resultado, req.user.plan, res);
 });
 
+// FILTRO DE PLANO
+function filtrarPlano(data, plan, res) {
+
+  if (plan === "free") {
+    data = data.filter(i => i.percentual <= 10);
+  }
+
+  res.json(data.slice(0, 100));
+}
+
 app.listen(PORT, () => {
-  console.log("Servidor rodando na porta", PORT);
+  console.log("Servidor rodando");
 });
