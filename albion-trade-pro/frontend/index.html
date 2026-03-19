@@ -28,7 +28,7 @@ header {
   margin-bottom: 20px;
 }
 
-input, select {
+input {
   padding: 10px;
   border-radius: 6px;
   border: none;
@@ -87,6 +87,7 @@ tr:hover {
 .loading {
   text-align: center;
   margin-top: 20px;
+  font-size: 18px;
 }
 </style>
 </head>
@@ -101,16 +102,6 @@ tr:hover {
   <input id="user" placeholder="Seu nome">
   <button onclick="login()">Login</button>
   <button onclick="buscar()">Atualizar</button>
-</div>
-
-  <select id="minProfit">
-    <option value="0">Lucro mínimo</option>
-    <option value="5">5%</option>
-    <option value="10">10%</option>
-    <option value="20">20%</option>
-  </select>
-
-  <button onclick="buscar()">Buscar</button>
   <button onclick="topLucro()">🔥 Mais Lucro</button>
 </div>
 
@@ -125,6 +116,7 @@ tr:hover {
 <th>Lucro</th>
 <th>%</th>
 <th>Status</th>
+<th>Liquidez</th>
 </tr>
 </thead>
 <tbody id="tabela"></tbody>
@@ -138,7 +130,7 @@ const API = "https://albion-trade-pro-ogaq.onrender.com";
 
 let token = localStorage.getItem("token") || "";
 
-// AUTO LOGIN
+// LOGIN
 async function login() {
   const username = document.getElementById("user").value;
 
@@ -152,25 +144,41 @@ async function login() {
   token = data.token;
   localStorage.setItem("token", token);
 
-  alert("Logado!");
+  alert("Login realizado!");
 }
 
-// TRADUZ ITEM
+// FORMATAR ITEM
 function formatItem(item) {
-  return item.replace("_", " ");
+  return item.replaceAll("_", " ");
 }
 
-// BADGE
+// BADGE STATUS
 function getBadge(p) {
+  p = parseFloat(p);
+
   if (p > 20) return '<span class="badge high">Alta</span>';
   if (p > 10) return '<span class="badge medium">Média</span>';
   return '<span class="badge low">Baixa</span>';
 }
 
-// BUSCAR
+// LIQUIDEZ
+function getLiquidez(p) {
+  p = parseFloat(p);
+
+  if (p > 20) return "🐢 Baixa";
+  if (p > 10) return "⚡ Média";
+  return "🔥 Alta";
+}
+
+// BUSCAR DADOS
 async function buscar() {
 
-  document.getElementById("loading").innerText = "Carregando...";
+  if (!token) {
+    alert("Faça login primeiro!");
+    return;
+  }
+
+  document.getElementById("loading").innerText = "Carregando oportunidades...";
 
   const res = await fetch(API + "/scanner", {
     headers: { Authorization: token }
@@ -178,9 +186,8 @@ async function buscar() {
 
   let data = await res.json();
 
-  // FILTRO FRONT
-  const min = document.getElementById("minProfit").value;
-  data = data.filter(i => i.percentual >= min);
+  // ORDENA POR MAIOR LUCRO
+  data.sort((a, b) => b.lucro - a.lucro);
 
   render(data);
 
@@ -208,13 +215,16 @@ function render(data) {
         <td class="lucro">${item.lucro}</td>
         <td class="lucro">${item.percentual}%</td>
         <td>${getBadge(item.percentual)}</td>
+        <td>${getLiquidez(item.percentual)}</td>
       </tr>
     `;
   });
 }
 
 // AUTO LOAD
-if (token) buscar();
+if (token) {
+  buscar();
+}
 
 </script>
 
