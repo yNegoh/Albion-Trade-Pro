@@ -10,19 +10,12 @@ app.use(express.json());
 const PORT = process.env.PORT || 3001;
 const SECRET = "albion-secret";
 
-// cidades
-const cities = [
-  "Bridgewatch",
-  "Martlock",
-  "Fort Sterling",
-  "Lymhurst",
-  "Thetford",
-  "Caerleon",
-  "Brecilien",
-  "Black Market"
-];
+// ROTA BASE (IMPORTANTE PRO RENDER)
+app.get("/", (req, res) => {
+  res.send("Albion Trade Pro API rodando 🚀");
+});
 
-// login fake inicial
+// LOGIN
 app.post("/login", (req, res) => {
   const { username } = req.body;
 
@@ -35,7 +28,7 @@ app.post("/login", (req, res) => {
   res.json({ token });
 });
 
-// middleware auth
+// AUTH
 function auth(req, res, next) {
   const token = req.headers.authorization;
 
@@ -50,68 +43,71 @@ function auth(req, res, next) {
   }
 }
 
-// buscar preços
+// FETCH SEGURO (EVITA CRASH)
 async function fetchPrices(item) {
-  const url = `https://www.albion-online-data.com/api/v2/stats/prices/${item}.json`;
-
-  const res = await axios.get(url);
-  return res.data;
+  try {
+    const url = `https://www.albion-online-data.com/api/v2/stats/prices/${item}.json`;
+    const res = await axios.get(url, { timeout: 5000 });
+    return res.data;
+  } catch (err) {
+    console.log("Erro ao buscar item:", item);
+    return [];
+  }
 }
 
-// cálculo lucro
-function calcularFlip(data) {
+// CALCULO
+function calcularFlip(data, item) {
   let oportunidades = [];
 
   for (let buy of data) {
     for (let sell of data) {
-      if (buy.city !== sell.city && buy.sell_price_min > 0 && sell.buy_price_max > 0) {
-
+      if (
+        buy.city !== sell.city &&
+        buy.sell_price_min > 0 &&
+        sell.buy_price_max > 0
+      ) {
         const lucro = sell.buy_price_max - buy.sell_price_min;
         const taxa = sell.buy_price_max * 0.065;
+        const liquido = lucro - taxa;
 
-        const lucroLiquido = lucro - taxa;
-
-        if (lucroLiquido > 0) {
+        if (liquido > 0) {
           oportunidades.push({
-            item: buy.item_id,
+            item,
             buyCity: buy.city,
             sellCity: sell.city,
-            buyPrice: buy.sell_price_min,
-            sellPrice: sell.buy_price_max,
-            lucro: lucroLiquido,
-            percentual: (lucroLiquido / buy.sell_price_min) * 100
+            lucro: Math.round(liquido),
+            percentual: ((liquido / buy.sell_price_min) * 100).toFixed(2)
           });
         }
       }
     }
   }
 
-  return oportunidades.sort((a, b) => b.lucro - a.lucro);
+  return oportunidades;
 }
 
-// scanner principal
+// SCANNER
 app.get("/scanner", auth, async (req, res) => {
-
-  const items = ["T4_BAG", "T5_BAG", "T6_BAG"]; // depois expandimos
+  const items = ["T4_BAG", "T5_BAG", "T6_BAG"];
 
   let resultado = [];
 
   for (let item of items) {
-    try {
-      const data = await fetchPrices(item);
-      const ops = calcularFlip(data);
-      resultado.push(...ops);
-    } catch {}
+    const data = await fetchPrices(item);
+    const ops = calcularFlip(data, item);
+    resultado.push(...ops);
   }
 
-  // regra FREE
+  // FREE LIMIT
   if (req.user.plan === "free") {
     resultado = resultado.filter(op => op.percentual <= 10);
   }
+
+  resultado.sort((a, b) => b.lucro - a.lucro);
 
   res.json(resultado.slice(0, 50));
 });
 
 app.listen(PORT, () => {
-  console.log("Servidor rodando...");
+  console.log("Servidor rodando na porta", PORT);
 });
