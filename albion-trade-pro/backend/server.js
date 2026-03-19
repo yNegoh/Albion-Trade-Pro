@@ -10,6 +10,7 @@ app.use(express.json());
 const PORT = process.env.PORT || 3001;
 const SECRET = "albion-secret";
 
+// ROTA BASE
 app.get("/", (req, res) => {
   res.send("Albion Trade Pro API rodando 🚀");
 });
@@ -42,6 +43,44 @@ function auth(req, res, next) {
   }
 }
 
+// GERAR ITENS COM ENCANTAMENTO
+function gerarItens() {
+
+  const bases = [
+    "BAG",
+    "CAPE",
+    "WOOD",
+    "STONE",
+    "FIBER",
+    "HIDE",
+    "ORE",
+    "PLANKS",
+    "METALBAR",
+    "LEATHER",
+    "CLOTH",
+    "STONEBLOCK",
+    "POTION_HEAL",
+    "POTION_ENERGY",
+    "FOOD_PIE",
+    "FOOD_SALAD"
+  ];
+
+  const tiers = [4,5,6,7];
+  const enchants = ["", "@1", "@2", "@3"];
+
+  let items = [];
+
+  for (let tier of tiers) {
+    for (let base of bases) {
+      for (let ench of enchants) {
+        items.push(`T${tier}_${base}${ench}`);
+      }
+    }
+  }
+
+  return items;
+}
+
 // BUSCAR PREÇOS
 async function fetchPrices(item) {
   try {
@@ -53,7 +92,7 @@ async function fetchPrices(item) {
   }
 }
 
-// FILTRO INTELIGENTE
+// VALIDAR TRADE
 function isValidTrade(buy, sell) {
 
   if (!buy.sell_price_min || !sell.buy_price_max) return false;
@@ -66,7 +105,7 @@ function isValidTrade(buy, sell) {
   return true;
 }
 
-// CALCULO PROFISSIONAL
+// CALCULO
 function calcularFlip(data, item) {
   let oportunidades = [];
 
@@ -86,7 +125,7 @@ function calcularFlip(data, item) {
 
       const percentual = (lucroLiquido / precoCompra) * 100;
 
-      // BLOQUEIOS
+      // FILTROS
       if (lucroLiquido <= 0) continue;
       if (percentual > 300) continue;
 
@@ -106,47 +145,7 @@ function calcularFlip(data, item) {
 // SCANNER
 app.get("/scanner", auth, async (req, res) => {
 
-  const items = [
-   const items = [
-
-  // BOLSAS E CAPAS
-  "T4_BAG","T5_BAG","T6_BAG","T7_BAG",
-  "T4_CAPE","T5_CAPE","T6_CAPE","T7_CAPE",
-
-  // COMIDA (ALTÍSSIMO GIRO)
-  "T5_FOOD_PIE","T6_FOOD_PIE",
-  "T5_FOOD_SALAD","T6_FOOD_SALAD",
-  "T5_FOOD_SOUP","T6_FOOD_SOUP",
-
-  // POÇÕES (MUITO FORTE)
-  "T4_POTION_HEAL","T5_POTION_HEAL","T6_POTION_HEAL",
-  "T4_POTION_ENERGY","T5_POTION_ENERGY","T6_POTION_ENERGY",
-  "T4_POTION_REVIVE","T5_POTION_REVIVE","T6_POTION_REVIVE",
-
-  // RECURSOS (SEMPRE VENDEM)
-  "T4_STONE","T5_STONE","T6_STONE",
-  "T4_WOOD","T5_WOOD","T6_WOOD",
-  "T4_FIBER","T5_FIBER","T6_FIBER",
-  "T4_HIDE","T5_HIDE","T6_HIDE",
-  "T4_ORE","T5_ORE","T6_ORE",
-
-  // REFINADOS
-  "T4_PLANKS","T5_PLANKS","T6_PLANKS",
-  "T4_METALBAR","T5_METALBAR","T6_METALBAR",
-  "T4_LEATHER","T5_LEATHER","T6_LEATHER",
-  "T4_CLOTH","T5_CLOTH","T6_CLOTH",
-  "T4_STONEBLOCK","T5_STONEBLOCK","T6_STONEBLOCK",
-
-  // MONTARIAS (BOA ROTACAO)
-  "T5_MOUNT_HORSE",
-  "T6_MOUNT_HORSE",
-
-  // ITENS DE USO GERAL
-  "T4_CAPEITEM_FW_BRIDGEWATCH",
-  "T4_CAPEITEM_FW_LYMHURST",
-  "T4_CAPEITEM_FW_MARTLOCK"
-];
-  ];
+  const items = gerarItens();
 
   let resultado = [];
 
