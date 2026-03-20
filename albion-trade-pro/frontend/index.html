@@ -5,46 +5,78 @@
 <title>Albion Trade Pro</title>
 
 <style>
-body { margin:0; font-family:Arial; background:#0f172a; color:white; }
-
-header {
+body {
+  margin:0;
+  font-family:Arial;
+  background:#0f172a;
+  color:white;
   display:flex;
-  justify-content:space-between;
-  padding:15px;
-  background:#020617;
 }
 
+/* SIDEBAR */
+.sidebar {
+  width:220px;
+  background:#020617;
+  padding:20px;
+  height:100vh;
+}
+
+.sidebar h2 {
+  margin-bottom:20px;
+}
+
+.sidebar button {
+  width:100%;
+  padding:10px;
+  margin-bottom:10px;
+  background:#1e293b;
+  border:none;
+  color:white;
+  cursor:pointer;
+}
+
+.sidebar button:hover {
+  background:#334155;
+}
+
+/* MAIN */
+.main {
+  flex:1;
+  padding:15px;
+}
+
+/* TOPBAR */
+.topbar {
+  display:flex;
+  justify-content:space-between;
+  margin-bottom:10px;
+}
+
+/* CARDS */
 .cards {
   display:flex;
   gap:10px;
-  padding:10px;
 }
 
 .card {
   flex:1;
   background:#1e293b;
-  padding:15px;
+  padding:10px;
   border-radius:10px;
   cursor:pointer;
-  transition:0.2s;
 }
 
-.card:hover {
-  background:#334155;
-}
-
-.filters {
-  padding:10px;
-}
-
+/* FILTERS */
 .filters input, .filters select {
   padding:8px;
   margin:5px;
 }
 
+/* TABLE */
 table {
   width:100%;
   border-collapse:collapse;
+  margin-top:10px;
 }
 
 th, td {
@@ -60,52 +92,65 @@ tr:hover {
   background:#1e293b;
 }
 
-.lucro { color:#22c55e; font-weight:bold; }
+.lucro {
+  color:#22c55e;
+}
 </style>
 </head>
 
 <body>
 
-<header>
-  <div>Albion Trade Pro</div>
+<!-- SIDEBAR -->
+<div class="sidebar">
+  <h2>Albion Trade</h2>
+
+  <button onclick="showPage('mercado')">📊 Mercado</button>
+  <button onclick="showPage('favoritos')">⭐ Favoritos</button>
+  <button onclick="showPage('alertas')">🔔 Alertas</button>
+  <button onclick="virarPremium()">💎 Premium</button>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+<div id="mercado">
+
+<!-- TOP -->
+<div class="topbar">
   <div id="userInfo">Não logado</div>
-</header>
+</div>
 
 <!-- CARDS -->
 <div class="cards">
+  <div class="card" onclick="setOrder('lucro')">
+    🔥 Top Lucro
+    <div id="topLucro"></div>
+  </div>
 
-<div class="card" onclick="ordenar('lucro')">
-<h3>🔥 Top Lucro</h3>
-<div id="topLucro"></div>
+  <div class="card" onclick="setOrder('volume')">
+    📦 Mais Vendidos
+    <div id="topVolume"></div>
+  </div>
+
+  <div class="card" onclick="setOrder('score')">
+    🧠 Melhor Score
+    <div id="topScore"></div>
+  </div>
 </div>
 
-<div class="card" onclick="ordenar('volume')">
-<h3>📦 Mais Vendidos</h3>
-<div id="topVolume"></div>
-</div>
-
-<div class="card" onclick="ordenar('score')">
-<h3>🧠 Melhor Score</h3>
-<div id="topScore"></div>
-</div>
-
-</div>
-
-<!-- FILTROS -->
+<!-- FILTERS -->
 <div class="filters">
+  <input id="search" placeholder="Buscar item">
 
-<input id="search" placeholder="Buscar item">
+  <select id="buyCity"></select>
+  <select id="sellCity"></select>
 
-<select id="buyCity"></select>
-<select id="sellCity"></select>
+  <input id="qty" type="number" value="1">
 
-<input id="qty" type="number" value="1">
-
-<button onclick="buscar()">Atualizar</button>
-
+  <button onclick="buscar()">Atualizar</button>
 </div>
 
-<!-- TABELA -->
+<!-- TABLE -->
 <table>
 <thead>
 <tr>
@@ -120,17 +165,23 @@ tr:hover {
 <th>Score</th>
 </tr>
 </thead>
-
 <tbody id="tabela"></tbody>
 </table>
+
+</div>
+
+<!-- OUTRAS PÁGINAS -->
+<div id="favoritos" style="display:none">⭐ Em breve</div>
+<div id="alertas" style="display:none">🔔 Em breve</div>
+
+</div>
 
 <script>
 
 const API = "https://albion-trade-pro-ogaq.onrender.com";
 
-let token = localStorage.getItem("token") || "";
 let dados = [];
-let ordemAtual = "score";
+let ordem = "score";
 
 // FORMAT
 function format(n){ return n.toLocaleString("pt-BR"); }
@@ -162,29 +213,22 @@ function preencherCidades(){
 
 // BUSCAR
 async function buscar(){
-  const res = await fetch(API+"/scanner",{ headers:{Authorization:token} });
+
+  const token = localStorage.getItem("token");
+
+  const res = await fetch(API+"/scanner",{
+    headers:{Authorization:token}
+  });
+
   dados = await res.json();
+
   preencherCidades();
-  ordenar(ordemAtual);
+  render();
 }
 
-// ORDENAR
-function ordenar(tipo){
-
-  ordemAtual = tipo;
-
-  if(tipo === "lucro"){
-    dados.sort((a,b)=>b.lucro-a.lucro);
-  }
-
-  if(tipo === "volume"){
-    dados.sort((a,b)=>b.volume-a.volume);
-  }
-
-  if(tipo === "score"){
-    dados.sort((a,b)=>b.score-a.score);
-  }
-
+// ORDEM
+function setOrder(tipo){
+  ordem = tipo;
   render();
 }
 
@@ -196,13 +240,20 @@ function render(){
   const sell = sellCity.value;
   const qty = parseInt(qtyInput.value) || 1;
 
-  tabela.innerHTML = "";
-
   let filtrado = dados.filter(i =>
     i.item.toLowerCase().includes(search) &&
     (!buy || i.buyCity === buy) &&
     (!sell || i.sellCity === sell)
   );
+
+  // ORDENAÇÃO CORRETA
+  filtrado.sort((a,b)=>{
+    if(ordem === "lucro") return b.lucro - a.lucro;
+    if(ordem === "volume") return b.volume - a.volume;
+    if(ordem === "score") return b.score - a.score;
+  });
+
+  tabela.innerHTML = "";
 
   filtrado.forEach(i=>{
     tabela.innerHTML += `
@@ -220,14 +271,28 @@ function render(){
   });
 
   // DASHBOARD
-  topLucro.innerHTML = dados.slice(0,3).map(i=>`${formatItem(i.item)} (${format(i.lucro)})`).join("<br>");
-  topVolume.innerHTML = [...dados].sort((a,b)=>b.volume-a.volume).slice(0,3)
+  topLucro.innerHTML = filtrado.slice(0,3).map(i=>`${formatItem(i.item)} (${format(i.lucro)})`).join("<br>");
+  topVolume.innerHTML = [...filtrado].sort((a,b)=>b.volume-a.volume).slice(0,3)
     .map(i=>`${formatItem(i.item)} (${format(i.volume)})`).join("<br>");
-  topScore.innerHTML = dados.slice(0,3)
+  topScore.innerHTML = filtrado.slice(0,3)
     .map(i=>`${formatItem(i.item)} (${format(i.score)})`).join("<br>");
 }
 
-// ELEMENTOS
+// NAVEGAÇÃO
+function showPage(page){
+  mercado.style.display = "none";
+  favoritos.style.display = "none";
+  alertas.style.display = "none";
+
+  document.getElementById(page).style.display = "block";
+}
+
+// PREMIUM
+function virarPremium(){
+  window.open("LINK_HOTMART_AQUI");
+}
+
+// INIT
 const searchInput = document.getElementById("search");
 const qtyInput = document.getElementById("qty");
 
@@ -236,10 +301,7 @@ buyCity.addEventListener("change", render);
 sellCity.addEventListener("change", render);
 qtyInput.addEventListener("input", render);
 
-// INIT
-if(token){
-  buscar();
-}
+buscar();
 
 </script>
 
