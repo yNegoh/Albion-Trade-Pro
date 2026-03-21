@@ -5,13 +5,7 @@
 <title>Albion Trade Pro</title>
 
 <style>
-body {
-  margin:0;
-  font-family:Arial;
-  background:#0f172a;
-  color:white;
-  display:flex;
-}
+body { margin:0; font-family:Arial; background:#0f172a; color:white; display:flex; }
 
 .sidebar {
   width:220px;
@@ -35,6 +29,17 @@ body {
   padding:15px;
 }
 
+.topbar {
+  display:flex;
+  justify-content:space-between;
+  margin-bottom:10px;
+}
+
+input, select {
+  padding:8px;
+  margin:5px;
+}
+
 .cards {
   display:flex;
   gap:10px;
@@ -48,11 +53,6 @@ body {
   cursor:pointer;
 }
 
-.filters input, .filters select {
-  padding:8px;
-  margin:5px;
-}
-
 table {
   width:100%;
   margin-top:10px;
@@ -63,17 +63,9 @@ th, td {
   text-align:center;
 }
 
-th {
-  background:#1e293b;
-}
+th { background:#1e293b; }
 
-tr:hover {
-  background:#1e293b;
-}
-
-.lucro {
-  color:#22c55e;
-}
+.lucro { color:#22c55e; }
 </style>
 </head>
 
@@ -86,7 +78,15 @@ tr:hover {
 
 <div class="main">
 
-<h3>Mercado</h3>
+<div class="topbar">
+  <div id="userInfo">Não logado</div>
+
+  <div id="loginArea">
+    <input id="user" placeholder="Usuário">
+    <input id="pass" type="password" placeholder="Senha">
+    <button onclick="login()">Login</button>
+  </div>
+</div>
 
 <div class="cards">
   <div class="card" onclick="setOrder('lucro')">🔥 Top Lucro</div>
@@ -94,12 +94,10 @@ tr:hover {
   <div class="card" onclick="setOrder('score')">🧠 Melhor Score</div>
 </div>
 
-<div class="filters">
-  <input id="search" placeholder="Buscar item">
-  <select id="buyCity"></select>
-  <select id="sellCity"></select>
-  <input id="qty" type="number" value="1">
-</div>
+<input id="search" placeholder="Buscar item">
+<select id="buyCity"></select>
+<select id="sellCity"></select>
+<input id="qty" type="number" value="1">
 
 <table>
 <thead>
@@ -127,15 +125,54 @@ const API = "https://albion-trade-pro-ogaq.onrender.com";
 let dados = [];
 let ordem = "score";
 
+// NOMES PT
+const nomes = {
+  BAG:"Bolsa",
+  CAPE:"Capa",
+  ORE:"Minério",
+  WOOD:"Madeira",
+  STONE:"Pedra"
+};
+
+// FORMAT ITEM
+function formatItem(item){
+
+  let tier = item.match(/T(\d)/)[1];
+  let enchant = item.includes("@") ? "." + item.split("@")[1] : "";
+  let base = item.split("_")[1];
+
+  return `${nomes[base] || base} T${tier}${enchant}`;
+}
+
+// LOGIN
+function login(){
+  const u = user.value;
+  const p = pass.value;
+
+  if(u === "negoh" && p === "301309*Negoh"){
+    localStorage.setItem("user", u);
+    userInfo.innerText = "Logado como: " + u;
+    loginArea.style.display = "none";
+  } else {
+    alert("Login inválido");
+  }
+}
+
+// INIT USER
+window.onload = () => {
+
+  const u = localStorage.getItem("user");
+
+  if(u){
+    userInfo.innerText = "Logado como: " + u;
+    loginArea.style.display = "none";
+  }
+
+  buscar();
+};
+
 // FORMAT
 function format(n){ return n.toLocaleString("pt-BR"); }
-
-// ITEM
-function formatItem(item){
-  let tier = item.match(/T(\d)/)[1];
-  let base = item.split("_").slice(1).join("_");
-  return base + " T" + tier;
-}
 
 // CIDADES
 const cidades = ["Bridgewatch","Martlock","Lymhurst","Fort Sterling","Thetford","Caerleon","Black Market"];
@@ -148,18 +185,14 @@ function preencherCidades(){
 // BUSCAR
 async function buscar(){
 
-  console.log("Buscando...");
-
   const res = await fetch(API+"/scanner");
   dados = await res.json();
-
-  console.log("Dados:", dados.length);
 
   preencherCidades();
   render();
 }
 
-// ORDENAR
+// ORDEM
 function setOrder(tipo){
   ordem = tipo;
   render();
@@ -171,10 +204,10 @@ function render(){
   const search = document.getElementById("search").value.toLowerCase();
   const buy = buyCity.value;
   const sell = sellCity.value;
-  const qty = parseInt(document.getElementById("qty").value) || 1;
+  const qty = parseInt(qty.value) || 1;
 
   let filtrado = dados.filter(i =>
-    i.item.toLowerCase().includes(search) &&
+    formatItem(i.item).toLowerCase().includes(search) &&
     (!buy || i.buyCity === buy) &&
     (!sell || i.sellCity === sell)
   );
@@ -202,9 +235,6 @@ function render(){
     </tr>`;
   });
 }
-
-// INIT
-window.onload = buscar;
 
 </script>
 
