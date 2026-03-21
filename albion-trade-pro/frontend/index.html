@@ -13,16 +13,11 @@ body {
   display:flex;
 }
 
-/* SIDEBAR */
 .sidebar {
   width:220px;
   background:#020617;
   padding:20px;
   height:100vh;
-}
-
-.sidebar h2 {
-  margin-bottom:20px;
 }
 
 .sidebar button {
@@ -35,24 +30,11 @@ body {
   cursor:pointer;
 }
 
-.sidebar button:hover {
-  background:#334155;
-}
-
-/* MAIN */
 .main {
   flex:1;
   padding:15px;
 }
 
-/* TOPBAR */
-.topbar {
-  display:flex;
-  justify-content:space-between;
-  margin-bottom:10px;
-}
-
-/* CARDS */
 .cards {
   display:flex;
   gap:10px;
@@ -66,16 +48,13 @@ body {
   cursor:pointer;
 }
 
-/* FILTERS */
 .filters input, .filters select {
   padding:8px;
   margin:5px;
 }
 
-/* TABLE */
 table {
   width:100%;
-  border-collapse:collapse;
   margin-top:10px;
 }
 
@@ -100,57 +79,28 @@ tr:hover {
 
 <body>
 
-<!-- SIDEBAR -->
 <div class="sidebar">
   <h2>Albion Trade</h2>
-
-  <button onclick="showPage('mercado')">📊 Mercado</button>
-  <button onclick="showPage('favoritos')">⭐ Favoritos</button>
-  <button onclick="showPage('alertas')">🔔 Alertas</button>
-  <button onclick="virarPremium()">💎 Premium</button>
-</div>
-
-<!-- MAIN -->
-<div class="main">
-
-<div id="mercado">
-
-<!-- TOP -->
-<div class="topbar">
-  <div id="userInfo">Não logado</div>
-</div>
-
-<!-- CARDS -->
-<div class="cards">
-  <div class="card" onclick="setOrder('lucro')">
-    🔥 Top Lucro
-    <div id="topLucro"></div>
-  </div>
-
-  <div class="card" onclick="setOrder('volume')">
-    📦 Mais Vendidos
-    <div id="topVolume"></div>
-  </div>
-
-  <div class="card" onclick="setOrder('score')">
-    🧠 Melhor Score
-    <div id="topScore"></div>
-  </div>
-</div>
-
-<!-- FILTERS -->
-<div class="filters">
-  <input id="search" placeholder="Buscar item">
-
-  <select id="buyCity"></select>
-  <select id="sellCity"></select>
-
-  <input id="qty" type="number" value="1">
-
   <button onclick="buscar()">Atualizar</button>
 </div>
 
-<!-- TABLE -->
+<div class="main">
+
+<h3>Mercado</h3>
+
+<div class="cards">
+  <div class="card" onclick="setOrder('lucro')">🔥 Top Lucro</div>
+  <div class="card" onclick="setOrder('volume')">📦 Mais Vendidos</div>
+  <div class="card" onclick="setOrder('score')">🧠 Melhor Score</div>
+</div>
+
+<div class="filters">
+  <input id="search" placeholder="Buscar item">
+  <select id="buyCity"></select>
+  <select id="sellCity"></select>
+  <input id="qty" type="number" value="1">
+</div>
+
 <table>
 <thead>
 <tr>
@@ -170,12 +120,6 @@ tr:hover {
 
 </div>
 
-<!-- OUTRAS PÁGINAS -->
-<div id="favoritos" style="display:none">⭐ Em breve</div>
-<div id="alertas" style="display:none">🔔 Em breve</div>
-
-</div>
-
 <script>
 
 const API = "https://albion-trade-pro-ogaq.onrender.com";
@@ -189,18 +133,8 @@ function format(n){ return n.toLocaleString("pt-BR"); }
 // ITEM
 function formatItem(item){
   let tier = item.match(/T(\d)/)[1];
-  let enchant = item.includes("@") ? "." + item.split("@")[1] : "";
   let base = item.split("_").slice(1).join("_");
-
-  const nomes = {
-    BAG:"Bolsa",
-    CAPE:"Capa",
-    ORE:"Minério",
-    WOOD:"Madeira",
-    STONE:"Pedra"
-  };
-
-  return `${nomes[base] || base} ${tier}${enchant}`;
+  return base + " T" + tier;
 }
 
 // CIDADES
@@ -214,19 +148,18 @@ function preencherCidades(){
 // BUSCAR
 async function buscar(){
 
-  const token = localStorage.getItem("token");
+  console.log("Buscando...");
 
-  const res = await fetch(API+"/scanner",{
-    headers:{Authorization:token}
-  });
-
+  const res = await fetch(API+"/scanner");
   dados = await res.json();
+
+  console.log("Dados:", dados.length);
 
   preencherCidades();
   render();
 }
 
-// ORDEM
+// ORDENAR
 function setOrder(tipo){
   ordem = tipo;
   render();
@@ -235,10 +168,10 @@ function setOrder(tipo){
 // RENDER
 function render(){
 
-  const search = searchInput.value.toLowerCase();
+  const search = document.getElementById("search").value.toLowerCase();
   const buy = buyCity.value;
   const sell = sellCity.value;
-  const qty = parseInt(qtyInput.value) || 1;
+  const qty = parseInt(document.getElementById("qty").value) || 1;
 
   let filtrado = dados.filter(i =>
     i.item.toLowerCase().includes(search) &&
@@ -246,7 +179,6 @@ function render(){
     (!sell || i.sellCity === sell)
   );
 
-  // ORDENAÇÃO CORRETA
   filtrado.sort((a,b)=>{
     if(ordem === "lucro") return b.lucro - a.lucro;
     if(ordem === "volume") return b.volume - a.volume;
@@ -269,39 +201,10 @@ function render(){
       <td>${format(i.score)}</td>
     </tr>`;
   });
-
-  // DASHBOARD
-  topLucro.innerHTML = filtrado.slice(0,3).map(i=>`${formatItem(i.item)} (${format(i.lucro)})`).join("<br>");
-  topVolume.innerHTML = [...filtrado].sort((a,b)=>b.volume-a.volume).slice(0,3)
-    .map(i=>`${formatItem(i.item)} (${format(i.volume)})`).join("<br>");
-  topScore.innerHTML = filtrado.slice(0,3)
-    .map(i=>`${formatItem(i.item)} (${format(i.score)})`).join("<br>");
-}
-
-// NAVEGAÇÃO
-function showPage(page){
-  mercado.style.display = "none";
-  favoritos.style.display = "none";
-  alertas.style.display = "none";
-
-  document.getElementById(page).style.display = "block";
-}
-
-// PREMIUM
-function virarPremium(){
-  window.open("LINK_HOTMART_AQUI");
 }
 
 // INIT
-const searchInput = document.getElementById("search");
-const qtyInput = document.getElementById("qty");
-
-searchInput.addEventListener("input", render);
-buyCity.addEventListener("change", render);
-sellCity.addEventListener("change", render);
-qtyInput.addEventListener("input", render);
-
-buscar();
+window.onload = buscar;
 
 </script>
 
