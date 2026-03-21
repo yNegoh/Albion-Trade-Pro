@@ -5,49 +5,12 @@
 <title>Albion Trade Pro</title>
 
 <style>
-body { margin:0; font-family:Arial; background:#0f172a; color:white; display:flex; }
-
-.sidebar {
-  width:220px;
-  background:#020617;
-  padding:20px;
-  height:100vh;
-}
-
-.sidebar button {
-  width:100%;
-  padding:10px;
-  margin-bottom:10px;
-  background:#1e293b;
-  border:none;
-  color:white;
-  cursor:pointer;
-}
-
-.main { flex:1; padding:15px; }
-
-.topbar {
-  display:flex;
-  justify-content:space-between;
-  margin-bottom:10px;
-}
+body { margin:0; font-family:Arial; background:#0f172a; color:white; }
+.container { padding:20px; }
 
 input, select {
   padding:8px;
   margin:5px;
-}
-
-.cards {
-  display:flex;
-  gap:10px;
-}
-
-.card {
-  flex:1;
-  background:#1e293b;
-  padding:10px;
-  border-radius:10px;
-  cursor:pointer;
 }
 
 table {
@@ -62,70 +25,35 @@ th, td {
 
 th { background:#1e293b; }
 .lucro { color:#22c55e; }
-
-/* AUTOCOMPLETE */
-#suggestions {
-  background:#020617;
-  position:absolute;
-  z-index:10;
-  width:200px;
-}
-
-.suggestion {
-  padding:5px;
-  cursor:pointer;
-}
-
-.suggestion:hover {
-  background:#1e293b;
-}
 </style>
 </head>
 
 <body>
 
-<div class="sidebar">
-  <h2>Albion Trade</h2>
-  <button onclick="buscar()">Atualizar</button>
-</div>
+<div class="container">
 
-<div class="main">
+<h2>Albion Trade Pro</h2>
 
-<div class="topbar">
-  <div id="userInfo">Não logado</div>
+<input id="search" placeholder="Buscar item">
+<select id="categoryFilter">
+  <option value="">Categoria</option>
+  <option>Arma</option>
+  <option>Armadura</option>
+  <option>Recurso</option>
+  <option>Consumível</option>
+  <option>Utilidade</option>
+</select>
 
-  <div id="loginArea">
-    <input id="user" placeholder="Usuário">
-    <input id="pass" type="password" placeholder="Senha">
-    <button onclick="login()">Login</button>
-  </div>
-</div>
-
-<div class="cards">
-  <div class="card" onclick="setOrder('lucro')">🔥 Top Lucro</div>
-  <div class="card" onclick="setOrder('volume')">📦 Mais Vendidos</div>
-  <div class="card" onclick="setOrder('score')">🧠 Melhor Score</div>
-</div>
-
-<div style="position:relative;">
-  <input id="search" placeholder="Buscar item">
-  <div id="suggestions"></div>
-</div>
-
-<select id="buyCity"></select>
-<select id="sellCity"></select>
-<input id="qtyInput" type="number" value="1">
+<button onclick="buscar()">Atualizar</button>
 
 <table>
 <thead>
 <tr>
 <th>Item</th>
+<th>Categoria</th>
 <th>Compra</th>
 <th>Venda</th>
-<th>Preço Compra</th>
-<th>Preço Venda</th>
 <th>Lucro</th>
-<th>Total</th>
 <th>Volume</th>
 <th>Score</th>
 </tr>
@@ -140,143 +68,40 @@ th { background:#1e293b; }
 const API = "https://albion-trade-pro-ogaq.onrender.com";
 
 let dados = [];
-let ordem = "score";
 
-// NOMES
-const nomes = {
-  BAG:"Bolsa",
-  CAPE:"Capa",
-  ORE:"Minério",
-  WOOD:"Madeira",
-  STONE:"Pedra"
-};
-
-function formatItem(item){
-  let tier = item.match(/T(\d)/)[1];
-  let enchant = item.includes("@") ? "." + item.split("@")[1] : "";
-  let base = item.split("_")[1];
-
-  return `${nomes[base] || base} T${tier}${enchant}`;
-}
-
-// LOGIN
-function login(){
-  if(user.value === "negoh" && pass.value === "301309*Negoh"){
-    localStorage.setItem("user", user.value);
-    location.reload();
-  } else alert("Login inválido");
-}
-
-// ENTER LOGIN
-pass.addEventListener("keypress", e=>{
-  if(e.key === "Enter") login();
-});
-
-// INIT
-window.onload = () => {
-
-  const u = localStorage.getItem("user");
-
-  if(u){
-    userInfo.innerText = "Logado como: " + u;
-    loginArea.style.display = "none";
-  }
-
-  buscar();
-};
-
-// FORMAT
-function format(n){ return n.toLocaleString("pt-BR"); }
-
-// CIDADES
-const cidades = ["Bridgewatch","Martlock","Lymhurst","Fort Sterling","Thetford","Caerleon","Black Market"];
-
-function preencherCidades(){
-  buyCity.innerHTML = `<option value="">Compra</option>` + cidades.map(c=>`<option>${c}</option>`).join("");
-  sellCity.innerHTML = `<option value="">Venda</option>` + cidades.map(c=>`<option>${c}</option>`).join("");
-}
-
-// BUSCAR
 async function buscar(){
   const res = await fetch(API+"/scanner");
   dados = await res.json();
-
-  preencherCidades();
   render();
 }
 
-// ORDEM
-function setOrder(tipo){
-  ordem = tipo;
-  render();
-}
-
-// RENDER
 function render(){
 
   const search = document.getElementById("search").value.toLowerCase();
-  const buy = buyCity.value;
-  const sell = sellCity.value;
-  const qty = parseInt(document.getElementById("qtyInput").value) || 1;
+  const category = document.getElementById("categoryFilter").value;
 
   let filtrado = dados.filter(i =>
-    formatItem(i.item).toLowerCase().includes(search) &&
-    (!buy || i.buyCity === buy) &&
-    (!sell || i.sellCity === sell)
+    i.name.toLowerCase().includes(search) &&
+    (!category || i.category === category)
   );
-
-  filtrado.sort((a,b)=>{
-    if(ordem === "lucro") return b.lucro - a.lucro;
-    if(ordem === "volume") return b.volume - a.volume;
-    if(ordem === "score") return b.score - a.score;
-  });
 
   tabela.innerHTML = "";
 
   filtrado.forEach(i=>{
     tabela.innerHTML += `
     <tr>
-      <td>${formatItem(i.item)}</td>
+      <td>${i.name}</td>
+      <td>${i.category}</td>
       <td>${i.buyCity}</td>
       <td>${i.sellCity}</td>
-      <td>${format(i.buyPrice)}</td>
-      <td>${format(i.sellPrice)}</td>
-      <td class="lucro">${format(i.lucro)}</td>
-      <td class="lucro">${format(i.lucro * qty)}</td>
-      <td>${format(i.volume)}</td>
-      <td>${format(i.score)}</td>
+      <td class="lucro">${i.lucro.toLocaleString()}</td>
+      <td>${i.volume}</td>
+      <td>${i.score}</td>
     </tr>`;
   });
-
-  gerarSugestoes();
 }
 
-// AUTOCOMPLETE
-function gerarSugestoes(){
-  const input = document.getElementById("search").value.toLowerCase();
-
-  if(!input){
-    suggestions.innerHTML = "";
-    return;
-  }
-
-  const lista = [...new Set(dados.map(i=>formatItem(i.item)))];
-
-  const filtrados = lista.filter(i => i.toLowerCase().includes(input)).slice(0,5);
-
-  suggestions.innerHTML = filtrados.map(i =>
-    `<div class="suggestion" onclick="selecionarSugestao('${i}')">${i}</div>`
-  ).join("");
-}
-
-function selecionarSugestao(nome){
-  search.value = nome;
-  suggestions.innerHTML = "";
-  render();
-}
-
-// EVENTOS
-search.addEventListener("input", render);
+buscar();
 
 </script>
 
