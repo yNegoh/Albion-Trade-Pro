@@ -10,20 +10,17 @@ app.use(cors());
 const PORT = process.env.PORT || 10000;
 
 let cache = { data: [], lastUpdate: 0 };
-const CACHE_TIME = 1000 * 60 * 5;
+const CACHE_TIME = 1000 * 60 * 10; // 10 min cache
 
-// CIDADES
-const cities = [
-  "Bridgewatch","Martlock","Lymhurst",
-  "Fort Sterling","Thetford","Caerleon","Black Market"
-];
+// 🔥 TEMPO DE HISTÓRICO (3 HORAS)
+const TIME_RANGE = 3; // pode mudar para 24 depois
 
 // ITENS
 function gerarItens() {
   return ITEMS.map(i => i.code);
 }
 
-// DADOS DO ITEM
+// ITEM DATA
 function getItemData(code){
   return ITEMS.find(i => i.code === code) || {
     name: code,
@@ -31,10 +28,10 @@ function getItemData(code){
   };
 }
 
-// FETCH API
+// FETCH COM TIME RANGE
 async function fetchAllPrices(items) {
   const requests = items.map(item =>
-    axios.get(`https://www.albion-online-data.com/api/v2/stats/prices/${item}.json`)
+    axios.get(`https://www.albion-online-data.com/api/v2/stats/prices/${item}.json?time-scale=${TIME_RANGE}`)
       .then(res => ({ item, data: res.data }))
       .catch(() => null)
   );
@@ -43,14 +40,14 @@ async function fetchAllPrices(items) {
   return results.filter(r => r && r.data.length);
 }
 
-// VOLUME (simulado)
+// VOLUME SIMULADO (depois podemos melhorar)
 function getVolume(){
   return Math.floor(Math.random() * 10000) + 1000;
 }
 
 // SCORE
 function getScore(lucro, volume){
-  return Math.round(lucro * 0.7 + volume * 0.3);
+  return Math.round(lucro * 0.6 + volume * 0.4);
 }
 
 // CALCULO
@@ -67,7 +64,7 @@ function calcularFlip(data, item) {
       const venda = sell.buy_price_max;
 
       if (!compra || !venda) continue;
-      if (venda > compra * 10) continue;
+      if (venda > compra * 5) continue;
 
       const taxa = venda * 0.065;
       const lucro = venda - compra - taxa;
@@ -117,7 +114,7 @@ app.get("/scanner", async (req, res) => {
 
   resultado.sort((a,b)=>b.score - a.score);
 
-  cache.data = resultado.slice(0,200);
+  cache.data = resultado.slice(0,1000);
   cache.lastUpdate = now;
 
   res.json(cache.data);
