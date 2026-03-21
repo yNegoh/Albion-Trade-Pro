@@ -24,10 +24,7 @@ body { margin:0; font-family:Arial; background:#0f172a; color:white; display:fle
   cursor:pointer;
 }
 
-.main {
-  flex:1;
-  padding:15px;
-}
+.main { flex:1; padding:15px; }
 
 .topbar {
   display:flex;
@@ -64,8 +61,24 @@ th, td {
 }
 
 th { background:#1e293b; }
-
 .lucro { color:#22c55e; }
+
+/* AUTOCOMPLETE */
+#suggestions {
+  background:#020617;
+  position:absolute;
+  z-index:10;
+  width:200px;
+}
+
+.suggestion {
+  padding:5px;
+  cursor:pointer;
+}
+
+.suggestion:hover {
+  background:#1e293b;
+}
 </style>
 </head>
 
@@ -94,10 +107,14 @@ th { background:#1e293b; }
   <div class="card" onclick="setOrder('score')">🧠 Melhor Score</div>
 </div>
 
-<input id="search" placeholder="Buscar item">
+<div style="position:relative;">
+  <input id="search" placeholder="Buscar item">
+  <div id="suggestions"></div>
+</div>
+
 <select id="buyCity"></select>
 <select id="sellCity"></select>
-<input id="qty" type="number" value="1">
+<input id="qtyInput" type="number" value="1">
 
 <table>
 <thead>
@@ -125,7 +142,7 @@ const API = "https://albion-trade-pro-ogaq.onrender.com";
 let dados = [];
 let ordem = "score";
 
-// NOMES PT
+// NOMES
 const nomes = {
   BAG:"Bolsa",
   CAPE:"Capa",
@@ -134,9 +151,7 @@ const nomes = {
   STONE:"Pedra"
 };
 
-// FORMAT ITEM
 function formatItem(item){
-
   let tier = item.match(/T(\d)/)[1];
   let enchant = item.includes("@") ? "." + item.split("@")[1] : "";
   let base = item.split("_")[1];
@@ -146,19 +161,18 @@ function formatItem(item){
 
 // LOGIN
 function login(){
-  const u = user.value;
-  const p = pass.value;
-
-  if(u === "negoh" && p === "301309*Negoh"){
-    localStorage.setItem("user", u);
-    userInfo.innerText = "Logado como: " + u;
-    loginArea.style.display = "none";
-  } else {
-    alert("Login inválido");
-  }
+  if(user.value === "negoh" && pass.value === "301309*Negoh"){
+    localStorage.setItem("user", user.value);
+    location.reload();
+  } else alert("Login inválido");
 }
 
-// INIT USER
+// ENTER LOGIN
+pass.addEventListener("keypress", e=>{
+  if(e.key === "Enter") login();
+});
+
+// INIT
 window.onload = () => {
 
   const u = localStorage.getItem("user");
@@ -184,7 +198,6 @@ function preencherCidades(){
 
 // BUSCAR
 async function buscar(){
-
   const res = await fetch(API+"/scanner");
   dados = await res.json();
 
@@ -204,7 +217,7 @@ function render(){
   const search = document.getElementById("search").value.toLowerCase();
   const buy = buyCity.value;
   const sell = sellCity.value;
-  const qty = parseInt(qty.value) || 1;
+  const qty = parseInt(document.getElementById("qtyInput").value) || 1;
 
   let filtrado = dados.filter(i =>
     formatItem(i.item).toLowerCase().includes(search) &&
@@ -234,7 +247,36 @@ function render(){
       <td>${format(i.score)}</td>
     </tr>`;
   });
+
+  gerarSugestoes();
 }
+
+// AUTOCOMPLETE
+function gerarSugestoes(){
+  const input = document.getElementById("search").value.toLowerCase();
+
+  if(!input){
+    suggestions.innerHTML = "";
+    return;
+  }
+
+  const lista = [...new Set(dados.map(i=>formatItem(i.item)))];
+
+  const filtrados = lista.filter(i => i.toLowerCase().includes(input)).slice(0,5);
+
+  suggestions.innerHTML = filtrados.map(i =>
+    `<div class="suggestion" onclick="selecionarSugestao('${i}')">${i}</div>`
+  ).join("");
+}
+
+function selecionarSugestao(nome){
+  search.value = nome;
+  suggestions.innerHTML = "";
+  render();
+}
+
+// EVENTOS
+search.addEventListener("input", render);
 
 </script>
 
