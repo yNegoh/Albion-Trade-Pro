@@ -1,125 +1,123 @@
 const express = require("express");
-const axios = require("axios");
-const cors = require("cors");
+const fs = require("fs");
 
 const app = express();
-app.use(cors());
 app.use(express.json());
 
-const PORT = process.env.PORT || 10000;
+const ITEMS = require("./items.json");
+let DB = require("./db.json");
 
-// CACHE
-let cache = { data: [], lastUpdate: 0 };
-const CACHE_TIME = 1000 * 60 * 5;
+// =========================
+// UTIL
+// =========================
 
-// ITENS COM ENCANTAMENTO
-function gerarItens() {
-  const base = [
-    "BAG","CAPE","ORE","WOOD","STONE"
-  ];
-
-  let lista = [];
-
-  for (let tier = 4; tier <= 6; tier++) {
-    for (let item of base) {
-      lista.push(`T${tier}_${item}`);
-      lista.push(`T${tier}_${item}@1`);
-      lista.push(`T${tier}_${item}@2`);
-    }
-  }
-
-  return lista;
+function saveDB() {
+  fs.writeFileSync("./db.json", JSON.stringify(DB, null, 2));
 }
 
-// FETCH
-async function fetchAllPrices(items) {
-  const reqs = items.map(item => {
-    return axios.get(`https://www.albion-online-data.com/api/v2/stats/prices/${item}.json`)
-      .then(res => ({ item, data: res.data }))
-      .catch(() => null);
-  });
-
-  const results = await Promise.all(reqs);
-  return results.filter(r => r && r.data.length);
+function getItemByCode(code) {
+  return ITEMS.find(i => i.code === code);
 }
 
-// VOLUME SIMULADO
-function getVolume(item){
-  if (item.includes("ORE") || item.includes("WOOD") || item.includes("STONE")) {
-    return Math.floor(Math.random() * 20000) + 10000;
-  }
-  return Math.floor(Math.random() * 8000) + 2000;
+function getItemName(code) {
+  const item = getItemByCode(code);
+  return item ? item.name : code;
 }
 
-// SCORE
-function getScore(lucro, volume){
-  return Math.round(lucro * 0.7 + volume * 0.3);
+function calcularLucro(buy, sell) {
+  const tax = sell * 0.065;
+  return sell - buy - tax;
 }
 
-// CALCULO
-function calcularFlip(data, item) {
+// =========================
+// ITEMS
+// =========================
 
-  let ops = [];
-
-  for (let buy of data) {
-    for (let sell of data) {
-
-      if (buy.city === sell.city) continue;
-
-      const compra = buy.sell_price_min;
-      const venda = sell.buy_price_max;
-
-      if (!compra || !venda) continue;
-      if (venda > compra * 10) continue;
-
-      const taxa = venda * 0.065;
-      const lucro = venda - compra - taxa;
-
-      if (lucro <= 0) continue;
-
-      const volume = getVolume(item);
-      const score = getScore(lucro, volume);
-
-      ops.push({
-        item,
-        buyCity: buy.city,
-        sellCity: sell.city,
-        buyPrice: compra,
-        sellPrice: venda,
-        lucro: Math.round(lucro),
-        volume,
-        score
-      });
-    }
-  }
-
-  return ops;
-}
-
-// SCANNER
-app.get("/scanner", async (req, res) => {
-
-  const now = Date.now();
-
-  if (now - cache.lastUpdate < CACHE_TIME && cache.data.length) {
-    return res.json(cache.data);
-  }
-
-  const items = gerarItens();
-  const allData = await fetchAllPrices(items);
-
-  let resultado = [];
-
-  for (let obj of allData) {
-    resultado.push(...calcularFlip(obj.data, obj.item));
-  }
-
-  resultado.sort((a,b)=>b.score - a.score);
-
-  cache.data = resultado.slice(0,200);
-  cache.lastUpdate = now;
-
-  res.json(cache.data);
+app.get("/api/items", (req, res) => {
+  res.json(ITEMS);
 });
 
-app.listen(PORT, ()=>console.log("Servidor rodando 🚀"));
+// =========================
+// PROFIT
+// =========================
+
+app.post("/api/profit", (req, res) => {
+  const { buy, sell } = req.body;
+
+  const lucro = calcularLucro(buy, sell);
+  const roi = ((lucro / buy) * 100).toFixed(2);
+
+  res.json({
+    lucro,
+    roi
+  });
+});
+
+// =========================
+// FAVORITOS
+// =========================
+
+// adicionar favorito
+app.post("/api/favorites", (req, res) => {
+  const { userId, itemCode } = req.body;
+
+  DB.favorites.push({ userId, itemCode });
+  saveDB();
+
+  res.json({ success: true });
+});
+
+// listar favoritos
+app.get("/api/favorites/:userId", (req, res) => {
+  const userId = req.params.userId;
+
+  const favs = DB.favorites
+    .filter(f => f.userId === userId)
+    .map(f => ({
+      ...f,
+      name: getItemName(f.itemCode)
+    }));
+
+  res.json(favs);
+});
+
+// remover favorito
+app.delete("/api/favorites", (req, res) => {
+  const { userId, itemCode } = req.body;
+
+  DB.favorites = DB.favorites.filter(
+    f => !(f.userId === userId && f.itemCode === itemCode)
+  );
+
+  saveDB();
+
+  res.json({ success: true });
+});
+
+// =========================
+// FILTRO AVANÇADO
+// =========================
+
+app.get("/api/filter", (req, res) => {
+  const { category, tier } = req.query;
+
+  let result = ITEMS;
+
+  if (category) {
+    result = result.filter(i => i.category === category);
+  }
+
+  if (tier) {
+    result = result.filter(i => i.tier == tier);
+  }
+
+  res.json(result);
+});
+
+// =========================
+// START
+// =========================
+
+app.listen(3000, () => {
+  console.log("Servidor rodando na porta 3000");
+});
