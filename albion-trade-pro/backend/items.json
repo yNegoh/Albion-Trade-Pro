@@ -1,0 +1,26 @@
+[
+  {
+    "code": "T4_2H_SWORD",
+    "name": "Espada Longa",
+    "tier": 4,
+    "enchantment": 0,
+    "category": "weapon",
+    "subcategory": "sword"
+  },
+  {
+    "code": "T4_2H_SWORD@1",
+    "name": "Espada Longa Encantada",
+    "tier": 4,
+    "enchantment": 1,
+    "category": "weapon",
+    "subcategory": "sword"
+  },
+  {
+    "code": "T4_CAPEITEM_FW_BRIDGEWATCH",
+    "name": "Capa de Bridgewatch",
+    "tier": 4,
+    "enchantment": 0,
+    "category": "cape",
+    "subcategory": "city"
+  }
+]
