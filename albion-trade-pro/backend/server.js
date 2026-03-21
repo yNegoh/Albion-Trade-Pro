@@ -12,15 +12,23 @@ const PORT = process.env.PORT || 10000;
 let cache = { data: [], lastUpdate: 0 };
 const CACHE_TIME = 1000 * 60 * 5;
 
-// ITENS
+// ITENS COM ENCANTAMENTO
 function gerarItens() {
-  return [
-    "T4_BAG","T5_BAG","T6_BAG",
-    "T4_CAPE","T5_CAPE",
-    "T4_ORE","T5_ORE","T6_ORE",
-    "T4_WOOD","T5_WOOD",
-    "T4_STONE","T5_STONE"
+  const base = [
+    "BAG","CAPE","ORE","WOOD","STONE"
   ];
+
+  let lista = [];
+
+  for (let tier = 4; tier <= 6; tier++) {
+    for (let item of base) {
+      lista.push(`T${tier}_${item}`);
+      lista.push(`T${tier}_${item}@1`);
+      lista.push(`T${tier}_${item}@2`);
+    }
+  }
+
+  return lista;
 }
 
 // FETCH
@@ -35,15 +43,12 @@ async function fetchAllPrices(items) {
   return results.filter(r => r && r.data.length);
 }
 
-// VOLUME (simulado)
+// VOLUME SIMULADO
 function getVolume(item){
   if (item.includes("ORE") || item.includes("WOOD") || item.includes("STONE")) {
     return Math.floor(Math.random() * 20000) + 10000;
   }
-  if (item.includes("BAG") || item.includes("CAPE")) {
-    return Math.floor(Math.random() * 8000) + 2000;
-  }
-  return Math.floor(Math.random() * 1000);
+  return Math.floor(Math.random() * 8000) + 2000;
 }
 
 // SCORE
@@ -91,7 +96,7 @@ function calcularFlip(data, item) {
   return ops;
 }
 
-// SCANNER (SEM AUTH)
+// SCANNER
 app.get("/scanner", async (req, res) => {
 
   const now = Date.now();
@@ -111,7 +116,7 @@ app.get("/scanner", async (req, res) => {
 
   resultado.sort((a,b)=>b.score - a.score);
 
-  cache.data = resultado.slice(0,100);
+  cache.data = resultado.slice(0,200);
   cache.lastUpdate = now;
 
   res.json(cache.data);
