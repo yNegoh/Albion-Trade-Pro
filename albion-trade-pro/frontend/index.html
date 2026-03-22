@@ -6,16 +6,13 @@
 
 <style>
 body { margin:0; font-family:Arial; background:#0f172a; color:white; }
-.container { padding:20px; }
 
-input, select {
-  padding:8px;
-  margin:5px;
-}
+.container { padding:20px; }
 
 table {
   width:100%;
   margin-top:10px;
+  border-collapse: collapse;
 }
 
 th, td {
@@ -23,7 +20,17 @@ th, td {
   text-align:center;
 }
 
-th { background:#1e293b; }
+th {
+  background:#1e293b;
+}
+
+select {
+  width:100%;
+  background:#0f172a;
+  color:white;
+  border:none;
+}
+
 .lucro { color:#22c55e; }
 </style>
 </head>
@@ -34,31 +41,47 @@ th { background:#1e293b; }
 
 <h2>Albion Trade Pro</h2>
 
-<input id="search" placeholder="Buscar item">
-<select id="categoryFilter">
-  <option value="">Categoria</option>
-  <option>Arma</option>
-  <option>Armadura</option>
-  <option>Recurso</option>
-  <option>Consumível</option>
-  <option>Utilidade</option>
-</select>
-
 <button onclick="buscar()">Atualizar</button>
 
 <table>
+
 <thead>
 <tr>
-<th>Item</th>
-<th>Categoria</th>
-<th>Compra</th>
-<th>Venda</th>
-<th>Lucro</th>
-<th>Volume</th>
-<th>Score</th>
+<th>
+Item<br>
+<input id="fItem" placeholder="Buscar..." oninput="filtrar()">
+</th>
+
+<th>
+Categoria<br>
+<select id="fCategoria" onchange="filtrar()">
+<option value="">Todos</option>
+</select>
+</th>
+
+<th>
+Compra<br>
+<select id="fCompra" onchange="filtrar()">
+<option value="">Todas</option>
+</select>
+</th>
+
+<th>
+Venda<br>
+<select id="fVenda" onchange="filtrar()">
+<option value="">Todas</option>
+</select>
+</th>
+
+<th onclick="ordenar('lucro')">Lucro ⬍</th>
+<th onclick="ordenar('volume')">Volume ⬍</th>
+<th onclick="ordenar('score')">Score ⬍</th>
+
 </tr>
 </thead>
+
 <tbody id="tabela"></tbody>
+
 </table>
 
 </div>
@@ -68,22 +91,57 @@ th { background:#1e293b; }
 const API = "https://albion-trade-pro-ogaq.onrender.com";
 
 let dados = [];
+let filtrado = [];
 
 async function buscar(){
   const res = await fetch(API+"/scanner");
   dados = await res.json();
+
+  popularFiltros();
+  filtrado = dados;
+  render();
+}
+
+function popularFiltros(){
+
+  const categorias = [...new Set(dados.map(i=>i.category))];
+  const compras = [...new Set(dados.map(i=>i.buyCity))];
+  const vendas = [...new Set(dados.map(i=>i.sellCity))];
+
+  fCategoria.innerHTML = '<option value="">Todos</option>';
+  categorias.forEach(c=>{
+    fCategoria.innerHTML += `<option>${c}</option>`;
+  });
+
+  fCompra.innerHTML = '<option value="">Todas</option>';
+  compras.forEach(c=>{
+    fCompra.innerHTML += `<option>${c}</option>`;
+  });
+
+  fVenda.innerHTML = '<option value="">Todas</option>';
+  vendas.forEach(c=>{
+    fVenda.innerHTML += `<option>${c}</option>`;
+  });
+}
+
+function filtrar(){
+
+  const item = fItem.value.toLowerCase();
+  const cat = fCategoria.value;
+  const compra = fCompra.value;
+  const venda = fVenda.value;
+
+  filtrado = dados.filter(i =>
+    i.name.toLowerCase().includes(item) &&
+    (!cat || i.category === cat) &&
+    (!compra || i.buyCity === compra) &&
+    (!venda || i.sellCity === venda)
+  );
+
   render();
 }
 
 function render(){
-
-  const search = document.getElementById("search").value.toLowerCase();
-  const category = document.getElementById("categoryFilter").value;
-
-  let filtrado = dados.filter(i =>
-    i.name.toLowerCase().includes(search) &&
-    (!category || i.category === category)
-  );
 
   tabela.innerHTML = "";
 
@@ -99,6 +157,21 @@ function render(){
       <td>${i.score}</td>
     </tr>`;
   });
+}
+
+let asc = false;
+
+function ordenar(campo){
+
+  asc = !asc;
+
+  filtrado.sort((a,b)=>{
+    return asc
+      ? a[campo] - b[campo]
+      : b[campo] - a[campo];
+  });
+
+  render();
 }
 
 buscar();
