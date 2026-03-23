@@ -6,7 +6,6 @@
 
 <style>
 body { margin:0; font-family:Arial; background:#0f172a; color:white; }
-
 .container { padding:20px; }
 
 table {
@@ -20,15 +19,13 @@ th, td {
   text-align:center;
 }
 
-th {
-  background:#1e293b;
-}
+th { background:#1e293b; }
 
-select {
+select, input {
   width:100%;
   background:#0f172a;
   color:white;
-  border:none;
+  border:1px solid #334155;
 }
 
 .lucro { color:#22c55e; }
@@ -47,30 +44,25 @@ select {
 
 <thead>
 <tr>
+
 <th>
 Item<br>
-<input id="fItem" placeholder="Buscar..." oninput="filtrar()">
+<input id="fItem" placeholder="Buscar...">
 </th>
 
 <th>
 Categoria<br>
-<select id="fCategoria" onchange="filtrar()">
-<option value="">Todos</option>
-</select>
+<select id="fCategoria"></select>
 </th>
 
 <th>
 Compra<br>
-<select id="fCompra" onchange="filtrar()">
-<option value="">Todas</option>
-</select>
+<select id="fCompra"></select>
 </th>
 
 <th>
 Venda<br>
-<select id="fVenda" onchange="filtrar()">
-<option value="">Todas</option>
-</select>
+<select id="fVenda"></select>
 </th>
 
 <th onclick="ordenar('lucro')">Lucro ⬍</th>
@@ -93,37 +85,59 @@ const API = "https://albion-trade-pro-ogaq.onrender.com";
 let dados = [];
 let filtrado = [];
 
-async function buscar(){
-  const res = await fetch(API+"/scanner");
-  dados = await res.json();
+const fItem = document.getElementById("fItem");
+const fCategoria = document.getElementById("fCategoria");
+const fCompra = document.getElementById("fCompra");
+const fVenda = document.getElementById("fVenda");
+const tabela = document.getElementById("tabela");
 
-  popularFiltros();
-  filtrado = dados;
-  render();
+// 🔥 EVENTOS
+fItem.addEventListener("input", filtrar);
+fCategoria.addEventListener("change", filtrar);
+fCompra.addEventListener("change", filtrar);
+fVenda.addEventListener("change", filtrar);
+
+// 🔥 BUSCAR DADOS
+async function buscar(){
+  try {
+    const res = await fetch(API + "/scanner");
+    dados = await res.json();
+
+    if (!dados.length) {
+      alert("Nenhum dado recebido da API");
+      return;
+    }
+
+    popularFiltros();
+    filtrado = [...dados];
+    render();
+
+  } catch (err) {
+    console.error(err);
+    alert("Erro ao conectar na API");
+  }
 }
 
+// 🔥 POPULAR FILTROS
 function popularFiltros(){
 
-  const categorias = [...new Set(dados.map(i=>i.category))];
-  const compras = [...new Set(dados.map(i=>i.buyCity))];
-  const vendas = [...new Set(dados.map(i=>i.sellCity))];
+  function setOptions(select, valores){
+    select.innerHTML = '<option value="">Todos</option>';
+    valores.forEach(v=>{
+      if(v) select.innerHTML += `<option value="${v}">${v}</option>`;
+    });
+  }
 
-  fCategoria.innerHTML = '<option value="">Todos</option>';
-  categorias.forEach(c=>{
-    fCategoria.innerHTML += `<option>${c}</option>`;
-  });
+  const categorias = [...new Set(dados.map(i=>i.category))].sort();
+  const compras = [...new Set(dados.map(i=>i.buyCity))].sort();
+  const vendas = [...new Set(dados.map(i=>i.sellCity))].sort();
 
-  fCompra.innerHTML = '<option value="">Todas</option>';
-  compras.forEach(c=>{
-    fCompra.innerHTML += `<option>${c}</option>`;
-  });
-
-  fVenda.innerHTML = '<option value="">Todas</option>';
-  vendas.forEach(c=>{
-    fVenda.innerHTML += `<option>${c}</option>`;
-  });
+  setOptions(fCategoria, categorias);
+  setOptions(fCompra, compras);
+  setOptions(fVenda, vendas);
 }
 
+// 🔥 FILTRO
 function filtrar(){
 
   const item = fItem.value.toLowerCase();
@@ -132,15 +146,18 @@ function filtrar(){
   const venda = fVenda.value;
 
   filtrado = dados.filter(i =>
+
     i.name.toLowerCase().includes(item) &&
     (!cat || i.category === cat) &&
     (!compra || i.buyCity === compra) &&
     (!venda || i.sellCity === venda)
+
   );
 
   render();
 }
 
+// 🔥 RENDER
 function render(){
 
   tabela.innerHTML = "";
@@ -159,6 +176,7 @@ function render(){
   });
 }
 
+// 🔥 ORDENAÇÃO
 let asc = false;
 
 function ordenar(campo){
@@ -174,6 +192,7 @@ function ordenar(campo){
   render();
 }
 
+// 🚀 INICIAR
 buscar();
 
 </script>
