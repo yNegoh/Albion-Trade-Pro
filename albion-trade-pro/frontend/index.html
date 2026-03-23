@@ -5,8 +5,30 @@
 <title>Albion Trade Pro</title>
 
 <style>
-body { margin:0; font-family:Arial; background:#0f172a; color:white; }
-.container { padding:20px; }
+body { margin:0; font-family:Arial; background:#0f172a; color:white; display:flex; }
+
+.sidebar {
+  width:220px;
+  background:#020617;
+  padding:15px;
+}
+
+.sidebar h3 { margin-bottom:10px; }
+
+.sidebar button {
+  width:100%;
+  margin-bottom:10px;
+  padding:10px;
+  background:#1e293b;
+  color:white;
+  border:none;
+  cursor:pointer;
+}
+
+.main {
+  flex:1;
+  padding:20px;
+}
 
 table {
   width:100%;
@@ -19,9 +41,9 @@ th, td {
   text-align:center;
 }
 
-th { background:#1e293b; }
+th { background:#1e293b; cursor:pointer; }
 
-select, input {
+input, select {
   width:100%;
   background:#0f172a;
   color:white;
@@ -29,46 +51,69 @@ select, input {
 }
 
 .lucro { color:#22c55e; }
+.star { cursor:pointer; }
+
+.autocomplete {
+  position:absolute;
+  background:#020617;
+  border:1px solid #334155;
+  max-height:150px;
+  overflow:auto;
+  width:200px;
+}
+
+.autocomplete div {
+  padding:5px;
+  cursor:pointer;
+}
+
+.autocomplete div:hover {
+  background:#1e293b;
+}
 </style>
 </head>
 
 <body>
 
-<div class="container">
+<div class="sidebar">
+  <h3>Albion Trade</h3>
+  <button onclick="mostrarTodos()">📊 Mercado</button>
+  <button onclick="mostrarFavoritos()">⭐ Favoritos</button>
+</div>
 
-<h2>Albion Trade Pro</h2>
+<div class="main">
+
+<h2>Scanner</h2>
+
+<div style="display:flex; gap:10px; flex-wrap:wrap;">
+
+<div style="position:relative;">
+<input id="fItem" placeholder="Buscar item...">
+<div id="auto" class="autocomplete"></div>
+</div>
+
+<select id="fCategoria"></select>
+<select id="fCompra"></select>
+<select id="fVenda"></select>
+
+<input id="fLucro" type="number" placeholder="Lucro mínimo">
 
 <button onclick="buscar()">Atualizar</button>
+
+</div>
 
 <table>
 
 <thead>
 <tr>
-
-<th>
-Item<br>
-<input id="fItem" placeholder="Buscar...">
-</th>
-
-<th>
-Categoria<br>
-<select id="fCategoria"></select>
-</th>
-
-<th>
-Compra<br>
-<select id="fCompra"></select>
-</th>
-
-<th>
-Venda<br>
-<select id="fVenda"></select>
-</th>
-
+<th>⭐</th>
+<th onclick="ordenar('name')">Item ⬍</th>
+<th onclick="ordenar('category')">Categoria ⬍</th>
+<th>Compra</th>
+<th>Venda</th>
 <th onclick="ordenar('lucro')">Lucro ⬍</th>
 <th onclick="ordenar('volume')">Volume ⬍</th>
 <th onclick="ordenar('score')">Score ⬍</th>
-
 </tr>
 </thead>
 
@@ -84,57 +129,79 @@ const API = "https://albion-trade-pro-ogaq.onrender.com";
 
 let dados = [];
 let filtrado = [];
+let favoritos = JSON.parse(localStorage.getItem("fav") || "[]");
 
 const fItem = document.getElementById("fItem");
+const auto = document.getElementById("auto");
 const fCategoria = document.getElementById("fCategoria");
 const fCompra = document.getElementById("fCompra");
 const fVenda = document.getElementById("fVenda");
-const tabela = document.getElementById("tabela");
+const fLucro = document.getElementById("fLucro");
 
-// 🔥 EVENTOS
-fItem.addEventListener("input", filtrar);
-fCategoria.addEventListener("change", filtrar);
-fCompra.addEventListener("change", filtrar);
-fVenda.addEventListener("change", filtrar);
+fItem.addEventListener("input", autocomplete);
+fCategoria.onchange = filtrar;
+fCompra.onchange = filtrar;
+fVenda.onchange = filtrar;
+fLucro.oninput = filtrar;
 
-// 🔥 BUSCAR DADOS
+// 🔥 BUSCAR
 async function buscar(){
-  try {
-    const res = await fetch(API + "/scanner");
-    dados = await res.json();
+  const res = await fetch(API+"/scanner");
+  dados = await res.json();
 
-    if (!dados.length) {
-      alert("Nenhum dado recebido da API");
-      return;
-    }
+  salvarFiltros();
+  carregarFiltros();
 
-    popularFiltros();
-    filtrado = [...dados];
-    render();
+  popularFiltros();
+  filtrado = [...dados];
 
-  } catch (err) {
-    console.error(err);
-    alert("Erro ao conectar na API");
-  }
+  render();
 }
 
-// 🔥 POPULAR FILTROS
-function popularFiltros(){
+// 🔥 AUTOCOMPLETE
+function autocomplete(){
+  const val = fItem.value.toLowerCase();
+  auto.innerHTML = "";
 
-  function setOptions(select, valores){
-    select.innerHTML = '<option value="">Todos</option>';
-    valores.forEach(v=>{
-      if(v) select.innerHTML += `<option value="${v}">${v}</option>`;
-    });
+  if(!val) return;
+
+  const sugestoes = dados
+    .map(i=>i.name)
+    .filter((v,i,a)=>a.indexOf(v)===i)
+    .filter(v=>v.toLowerCase().includes(val))
+    .slice(0,10);
+
+  sugestoes.forEach(s=>{
+    const div = document.createElement("div");
+    div.innerText = s;
+    div.onclick = ()=>{
+      fItem.value = s;
+      auto.innerHTML = "";
+      filtrar();
+    };
+    auto.appendChild(div);
+  });
+}
+
+// 🔥 FAVORITOS
+function toggleFav(item){
+  if(favoritos.includes(item)){
+    favoritos = favoritos.filter(f=>f!==item);
+  } else {
+    favoritos.push(item);
   }
+  localStorage.setItem("fav", JSON.stringify(favoritos));
+  render();
+}
 
-  const categorias = [...new Set(dados.map(i=>i.category))].sort();
-  const compras = [...new Set(dados.map(i=>i.buyCity))].sort();
-  const vendas = [...new Set(dados.map(i=>i.sellCity))].sort();
+function mostrarFavoritos(){
+  filtrado = dados.filter(i=>favoritos.includes(i.item));
+  render();
+}
 
-  setOptions(fCategoria, categorias);
-  setOptions(fCompra, compras);
-  setOptions(fVenda, vendas);
+function mostrarTodos(){
+  filtrado = [...dados];
+  render();
 }
 
 // 🔥 FILTRO
@@ -144,14 +211,14 @@ function filtrar(){
   const cat = fCategoria.value;
   const compra = fCompra.value;
   const venda = fVenda.value;
+  const lucroMin = Number(fLucro.value) || 0;
 
   filtrado = dados.filter(i =>
-
     i.name.toLowerCase().includes(item) &&
     (!cat || i.category === cat) &&
     (!compra || i.buyCity === compra) &&
-    (!venda || i.sellCity === venda)
-
+    (!venda || i.sellCity === venda) &&
+    i.lucro >= lucroMin
   );
 
   render();
@@ -159,12 +226,14 @@ function filtrar(){
 
 // 🔥 RENDER
 function render(){
-
   tabela.innerHTML = "";
 
   filtrado.forEach(i=>{
     tabela.innerHTML += `
     <tr>
+      <td class="star" onclick="toggleFav('${i.item}')">
+        ${favoritos.includes(i.item) ? "⭐" : "☆"}
+      </td>
       <td>${i.name}</td>
       <td>${i.category}</td>
       <td>${i.buyCity}</td>
@@ -178,21 +247,48 @@ function render(){
 
 // 🔥 ORDENAÇÃO
 let asc = false;
-
 function ordenar(campo){
-
   asc = !asc;
-
-  filtrado.sort((a,b)=>{
-    return asc
-      ? a[campo] - b[campo]
-      : b[campo] - a[campo];
-  });
-
+  filtrado.sort((a,b)=> asc ? a[campo]-b[campo] : b[campo]-a[campo]);
   render();
 }
 
-// 🚀 INICIAR
+// 🔥 FILTROS
+function popularFiltros(){
+
+  function setOptions(el, list){
+    el.innerHTML = '<option value="">Todos</option>';
+    list.forEach(v=>{
+      el.innerHTML += `<option>${v}</option>`;
+    });
+  }
+
+  setOptions(fCategoria, [...new Set(dados.map(i=>i.category))]);
+  setOptions(fCompra, [...new Set(dados.map(i=>i.buyCity))]);
+  setOptions(fVenda, [...new Set(dados.map(i=>i.sellCity))]);
+}
+
+// 🔥 SALVAR FILTROS
+function salvarFiltros(){
+  localStorage.setItem("filtros", JSON.stringify({
+    item:fItem.value,
+    cat:fCategoria.value,
+    compra:fCompra.value,
+    venda:fVenda.value,
+    lucro:fLucro.value
+  }));
+}
+
+function carregarFiltros(){
+  const f = JSON.parse(localStorage.getItem("filtros")||"{}");
+  fItem.value = f.item||"";
+  fCategoria.value = f.cat||"";
+  fCompra.value = f.compra||"";
+  fVenda.value = f.venda||"";
+  fLucro.value = f.lucro||"";
+}
+
+// INIT
 buscar();
 
 </script>
