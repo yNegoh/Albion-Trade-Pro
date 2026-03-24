@@ -2,198 +2,92 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Albion Trader</title>
+    <title>Albion Trader Pro</title>
     <style>
-        :root {
-            --bg-dark: #0f172a;
-            --card-bg: #1e293b;
-            --accent: #22c55e;
-            --text-main: #f8fafc;
-            --text-dim: #94a3b8;
-        }
-        body { background: var(--bg-dark); color: var(--text-main); font-family: sans-serif; margin: 0; display: flex; height: 100vh; }
-        
-        /* Sidebar Restaurada */
-        .sidebar { width: 240px; background: var(--card-bg); padding: 20px; border-right: 1px solid #334155; display: flex; flex-direction: column; gap: 10px; }
-        .sidebar h2 { color: var(--accent); font-size: 1.4rem; margin-bottom: 30px; text-align: left; padding-left: 10px; }
-        .nav-item { padding: 12px 15px; border-radius: 8px; cursor: pointer; transition: 0.3s; color: var(--text-dim); text-decoration: none; font-weight: bold; border: none; background: transparent; text-align: left; display: flex; align-items: center; gap: 10px; }
-        .nav-item:hover { background: #334155; color: white; }
-        .nav-item.active { background: var(--accent); color: white; }
-
-        /* Conteúdo Principal */
-        .main-content { flex: 1; display: flex; flex-direction: column; overflow-y: auto; }
-        .top-header { background: var(--card-bg); padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; }
-        .container { padding: 25px; }
-
-        /* Barra de Filtros Estilo Profissional */
-        .filter-bar { 
-            display: grid; 
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); 
-            gap: 15px; 
-            background: var(--card-bg); 
-            padding: 20px; 
-            border-radius: 12px; 
-            margin-bottom: 20px;
-            border: 1px solid #334155;
-        }
-        .filter-group { display: flex; flex-direction: column; gap: 5px; }
-        .filter-group label { font-size: 0.75rem; color: var(--text-dim); font-weight: bold; text-transform: uppercase; }
-        input, select { padding: 10px; border-radius: 6px; border: 1px solid #475569; background: #0f172a; color: white; outline: none; }
-        input:focus { border-color: var(--accent); }
-
-        /* Tabela */
-        .table-container { background: var(--card-bg); border-radius: 12px; overflow: hidden; border: 1px solid #334155; }
-        table { width: 100%; border-collapse: collapse; }
-        th { background: #1e293b; text-align: left; padding: 15px; border-bottom: 2px solid #334155; color: var(--accent); font-size: 0.8rem; text-transform: uppercase; }
-        td { padding: 15px; border-bottom: 1px solid #334155; font-size: 0.9rem; }
-        tr:hover { background: #2d3748; }
-
-        .lucro-pos { color: var(--accent); font-weight: bold; }
-        .roi-badge { background: rgba(34, 197, 94, 0.1); color: var(--accent); padding: 4px 8px; border-radius: 4px; font-weight: bold; }
-        .time-text { color: var(--text-dim); font-size: 0.8rem; }
-        
-        #loading { text-align: center; padding: 40px; color: var(--accent); font-weight: bold; }
+        body { background: #0f172a; color: white; font-family: sans-serif; margin: 0; display: flex; height: 100vh; }
+        .sidebar { width: 240px; background: #1e293b; padding: 20px; border-right: 1px solid #334155; }
+        .nav-item { display: block; width: 100%; padding: 12px; margin-bottom: 5px; border-radius: 8px; background: transparent; border: none; color: #94a3b8; text-align: left; cursor: pointer; font-weight: bold; }
+        .nav-item.active { background: #22c55e; color: white; }
+        .main { flex: 1; padding: 25px; overflow-y: auto; }
+        .filter-bar { display: flex; gap: 10px; margin-bottom: 20px; background: #1e293b; padding: 15px; border-radius: 10px; }
+        input, select { background: #0f172a; color: white; border: 1px solid #334155; padding: 10px; border-radius: 5px; }
+        table { width: 100%; border-collapse: collapse; background: #1e293b; border-radius: 10px; overflow: hidden; }
+        th, td { padding: 15px; text-align: left; border-bottom: 1px solid #334155; }
+        th { color: #22c55e; font-size: 0.8rem; }
+        .lucro { color: #22c55e; font-weight: bold; }
+        #status-msg { padding: 10px; color: #22c55e; font-weight: bold; }
     </style>
 </head>
 <body>
-
-    <!-- Sidebar Restaurada -->
     <div class="sidebar">
-        <h2>Albion Trader</h2>
+        <h2 style="color:#22c55e">Albion Trader</h2>
         <button class="nav-item active">📊 Scanner Global</button>
         <button class="nav-item">💎 Top Lucros</button>
-        <button class="nav-item">⭐ Favoritos</button>
         <button class="nav-item">⚙️ Configurações</button>
-        
-        <div style="margin-top: auto; padding: 10px; font-size: 0.7rem; color: var(--text-dim); border-top: 1px solid #334155;">
-            Status: <span id="api-status" style="color: yellow;">Conectando...</span>
-        </div>
     </div>
-
-    <div class="main-content">
-        <div class="top-header">
-            <div>Logado como: <strong>Visitante</strong></div>
-            <button class="btn-update" onclick="carregarDados()" style="background: var(--accent); color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: bold;">🔄 Atualizar Dados</button>
+    <div class="main">
+        <div class="filter-bar">
+            <input type="text" id="inNome" placeholder="Buscar item..." oninput="render()">
+            <input type="number" id="inRoi" placeholder="ROI Min %" oninput="render()" style="width: 80px;">
+            <button onclick="carregar()" style="background:#22c55e; border:none; color:white; padding:10px 20px; border-radius:5px; cursor:pointer; font-weight:bold">🔄 ATUALIZAR</button>
         </div>
+        
+        <div id="status-msg">Aguardando comando...</div>
 
-        <div class="container">
-            <!-- Barra de Filtros Avançados -->
-            <div class="filter-bar">
-                <div class="filter-group">
-                    <label>Buscar Item</label>
-                    <input type="text" id="filterNome" placeholder="Ex: Espada" oninput="filtrar()">
-                </div>
-                <div class="filter-group">
-                    <label>Origem</label>
-                    <select id="filterOrigem" onchange="filtrar()">
-                        <option value="">Todas as Cidades</option>
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <label>Destino</label>
-                    <select id="filterDestino" onchange="filtrar()">
-                        <option value="">Todas as Cidades</option>
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <label>ROI Mínimo (%)</label>
-                    <input type="number" id="filterROI" placeholder="Ex: 10" oninput="filtrar()">
-                </div>
-            </div>
-
-            <div id="loading">🔍 ANALISANDO MERCADO REAL...</div>
-
-            <div class="table-container" id="tabelaArea" style="display: none;">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Item</th>
-                            <th>Rota</th>
-                            <th>Compra</th>
-                            <th>Venda (Líq)</th>
-                            <th>Lucro</th>
-                            <th>ROI</th>
-                            <th>Visto há</th>
-                        </tr>
-                    </thead>
-                    <tbody id="corpoTabela"></tbody>
-                </table>
-            </div>
-        </div>
+        <table id="tabela" style="display:none">
+            <thead>
+                <tr>
+                    <th>Item</th>
+                    <th>Rota</th>
+                    <th>Compra</th>
+                    <th>Venda (Líq)</th>
+                    <th>Lucro</th>
+                    <th>ROI</th>
+                    <th>Visto</th>
+                </tr>
+            </thead>
+            <tbody id="corpo"></tbody>
+        </table>
     </div>
 
     <script>
-        const API_URL = "https://albion-trade-pro-ogaq.onrender.com/scanner";
-        let bancoDeDados = [];
+        const API = "https://albion-trade-pro-ogaq.onrender.com/scanner";
+        let dados = [];
 
-        async function carregarDados() {
-            const loader = document.getElementById('loading');
-            const area = document.getElementById('tabelaArea');
-            const status = document.getElementById('api-status');
-
-            loader.style.display = 'block';
-            area.style.display = 'none';
-
+        async function carregar() {
+            const msg = document.getElementById('status-msg');
+            msg.innerText = "⏳ Buscando dados reais (Aguarde 15s)...";
             try {
-                const res = await fetch(API_URL);
-                bancoDeDados = await res.json();
-                
-                popularCidades();
-                filtrar();
-
-                loader.style.display = 'none';
-                area.style.display = 'block';
-                status.innerText = "Online";
-                status.style.color = "#22c55e";
+                const r = await fetch(API);
+                dados = await r.json();
+                if (dados.length === 0) {
+                    msg.innerText = "⚠️ Nenhum item com lucro encontrado no momento.";
+                } else {
+                    msg.innerText = `✅ ${dados.length} oportunidades encontradas!`;
+                    document.getElementById('tabela').style.display = "table";
+                    render();
+                }
             } catch (e) {
-                loader.innerHTML = "❌ Erro ao conectar com o backend.";
-                status.innerText = "Erro";
-                status.style.color = "red";
+                msg.innerText = "❌ Erro: O backend está fora do ar ou demorou demais.";
             }
         }
 
-        function popularCidades() {
-            const cidades = [...new Set(bancoDeDados.map(d => d.origem))];
-            const selO = document.getElementById('filterOrigem');
-            const selD = document.getElementById('filterDestino');
-            
-            // Manter apenas a opção "Todas" e adicionar o resto
-            selO.innerHTML = '<option value="">Todas as Cidades</option>';
-            selD.innerHTML = '<option value="">Todas as Cidades</option>';
-
-            cidades.sort().forEach(c => {
-                selO.innerHTML += `<option value="${c}">${c}</option>`;
-                selD.innerHTML += `<option value="${c}">${c}</option>`;
-            });
-        }
-
         function formatTime(dateStr) {
-            if(!dateStr) return "---";
-            const diff = Math.floor((new Date() - new Date(dateStr)) / 60000);
-            if (diff < 0) return "Agora";
-            if (diff < 60) return `${diff}m`;
-            return `${Math.floor(diff/60)}h ${diff%60}m`;
+            const diff = Math.floor((Date.now() - new Date(dateStr)) / 60000);
+            return diff < 60 ? diff + "m" : Math.floor(diff/60) + "h";
         }
 
-        function filtrar() {
-            const nome = document.getElementById('filterNome').value.toLowerCase();
-            const origem = document.getElementById('filterOrigem').value;
-            const destino = document.getElementById('filterDestino').value;
-            const minRoi = parseFloat(document.getElementById('filterROI').value) || 0;
-
-            const filtrados = bancoDeDados.filter(d => {
-                const bateNome = d.nome.toLowerCase().includes(nome);
-                const bateOrigem = origem === "" || d.origem === origem;
-                const bateDestino = destino === "" || d.destino === destino;
-                const valorROI = parseFloat(d.roi.replace('%', ''));
-                const bateROI = valorROI >= minRoi;
-                
-                return bateNome && bateOrigem && bateDestino && bateROI;
-            });
-
-            const corpo = document.getElementById('corpoTabela');
+        function render() {
+            const nome = document.getElementById('inNome').value.toLowerCase();
+            const roiMin = parseFloat(document.getElementById('inRoi').value) || 0;
+            const corpo = document.getElementById('corpo');
             corpo.innerHTML = "";
+
+            const filtrados = dados.filter(d => {
+                const bateNome = d.nome.toLowerCase().includes(nome);
+                const bateRoi = parseFloat(d.roi) >= roiMin;
+                return bateNome && bateRoi;
+            });
 
             filtrados.forEach(d => {
                 corpo.innerHTML += `
@@ -202,15 +96,16 @@
                         <td>${d.origem} ➔ ${d.destino}</td>
                         <td>${d.compra.toLocaleString()}</td>
                         <td>${d.venda.toLocaleString()}</td>
-                        <td class="lucro-pos">+ ${d.lucro.toLocaleString()}</td>
-                        <td><span class="roi-badge">${d.roi}</span></td>
-                        <td class="time-text">${formatTime(d.atualizado)}</td>
+                        <td class="lucro">+ ${d.lucro.toLocaleString()}</td>
+                        <td>${d.roi}</td>
+                        <td style="color:#94a3b8; font-size:0.8rem">${formatTime(d.atualizado)}</td>
                     </tr>
                 `;
             });
         }
-
-        window.onload = carregarDados;
+        
+        // Carrega automático ao abrir
+        window.onload = carregar;
     </script>
 </body>
 </html>
