@@ -2,123 +2,182 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ALLBion Traders Pro</title>
     <style>
-        body { background: #0f172a; color: white; font-family: sans-serif; margin: 0; }
-        .header { background: #1e293b; padding: 20px; text-align: center; border-bottom: 3px solid #22c55e; }
-        .container { padding: 20px; }
-        .controls { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; background: #1e293b; padding: 15px; border-radius: 8px; }
-        input, select { padding: 10px; border-radius: 5px; border: none; background: #334155; color: white; }
-        table { width: 100%; border-collapse: collapse; background: #1e293b; border-radius: 8px; overflow: hidden; }
-        th, td { padding: 15px; text-align: left; border-bottom: 1px solid #334155; }
-        th { background: #334155; color: #22c55e; }
-        .lucro { color: #22c55e; font-weight: bold; }
-        .btn { background: #22c55e; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
-        .loading { text-align: center; padding: 20px; font-style: italic; color: #94a3b8; }
+        :root {
+            --bg-dark: #0f172a;
+            --card-bg: #1e293b;
+            --accent: #22c55e;
+            --text-main: #f8fafc;
+            --text-dim: #94a3b8;
+        }
+        body { background: var(--bg-dark); color: var(--text-main); font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; display: flex; height: 100vh; overflow: hidden; }
+        
+        /* Sidebar */
+        .sidebar { width: 220px; background: var(--card-bg); padding: 20px; border-right: 1px solid #334155; display: flex; flex-direction: column; gap: 10px; }
+        .sidebar h2 { color: var(--accent); font-size: 1.2rem; margin-bottom: 20px; text-align: center; }
+        .nav-item { padding: 12px; border-radius: 8px; cursor: pointer; transition: 0.3s; color: var(--text-dim); text-decoration: none; font-weight: bold; border: none; background: transparent; text-align: left; width: 100%; }
+        .nav-item:hover { background: #334155; color: white; }
+        .nav-item.active { background: var(--accent); color: white; }
+
+        /* Main Content */
+        .main-content { flex: 1; display: flex; flex-direction: column; overflow-y: auto; }
+        .header { background: var(--card-bg); padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; }
+        
+        .container { padding: 30px; }
+        
+        /* Controles */
+        .controls { display: flex; gap: 15px; margin-bottom: 25px; flex-wrap: wrap; align-items: center; }
+        input, select { padding: 12px; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: white; min-width: 180px; }
+        
+        .btn-update { background: var(--accent); color: white; padding: 12px 25px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.3s; }
+        .btn-update:hover { opacity: 0.8; transform: translateY(-2px); }
+
+        /* Tabela */
+        .table-container { background: var(--card-bg); border-radius: 12px; padding: 20px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; padding: 15px; border-bottom: 2px solid #334155; color: var(--accent); text-transform: uppercase; font-size: 0.8rem; }
+        td { padding: 15px; border-bottom: 1px solid #334155; font-size: 0.9rem; }
+        tr:hover { background: #2d3748; }
+
+        .lucro-text { color: var(--accent); font-weight: bold; }
+        .roi-badge { background: rgba(34, 197, 94, 0.1); color: var(--accent); padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; }
+        
+        .loading-overlay { display: none; text-align: center; padding: 40px; color: var(--text-dim); }
     </style>
 </head>
 <body>
 
-<div class="header">
-    <h1>ALLBion Traders Pro <small style="font-size: 12px; color: #94a3b8;">Scanner de Elite</small></h1>
-</div>
-
-<div class="container">
-    <div class="controls">
-        <input type="text" id="search" placeholder="Buscar item (ex: Bag, Sword)..." oninput="render()">
-        <select id="fOrigem" onchange="render()">
-            <option value="">Cidade Origem: Todas</option>
-        </select>
-        <select id="fDestino" onchange="render()">
-            <option value="">Cidade Destino: Todas</option>
-        </select>
-        <button class="btn" onclick="fetchData()">Atualizar Dados</button>
+    <div class="sidebar">
+        <h2>ALLBion Trade</h2>
+        <button class="nav-item active">📊 Scanner Global</button>
+        <button class="nav-item">💎 Top Lucros</button>
+        <button class="nav-item">⚙️ Configurações</button>
+        <div style="margin-top: auto; font-size: 0.7rem; color: var(--text-dim);">Status: <span id="api-status" style="color: yellow;">Conectando...</span></div>
     </div>
 
-    <div id="status" class="loading">Clique em Atualizar para buscar oportunidades...</div>
+    <div class="main-content">
+        <div class="header">
+            <div id="user-display">Bem-vindo, <strong>Visitante</strong></div>
+            <div style="color: var(--text-dim); font-size: 0.8rem;">Taxas: 6.5% (Premium)</div>
+        </div>
 
-    <table id="tabela" style="display: none;">
-        <thead>
-            <tr>
-                <th>Item</th>
-                <th>Origem</th>
-                <th>Destino</th>
-                <th>Compra</th>
-                <th>Venda (-6.5%)</th>
-                <th>Lucro Líquido</th>
-                <th>ROI</th>
-            </tr>
-        </thead>
-        <tbody id="corpoTabela"></tbody>
-    </table>
-</div>
+        <div class="container">
+            <div class="controls">
+                <input type="text" id="searchInput" placeholder="Filtrar por nome..." oninput="filtrarEApparacer()">
+                <select id="selectOrigem" onchange="filtrarEApparacer()">
+                    <option value="">Qualquer Origem</option>
+                </select>
+                <select id="selectDestino" onchange="filtrarEApparacer()">
+                    <option value="">Qualquer Destino</option>
+                </select>
+                <button class="btn-update" onclick="carregarDados()">🔄 Atualizar Scanner</button>
+            </div>
 
-<script>
-    // COLOQUE O LINK DO SEU RENDER AQUI ABAIXO
-    const API_URL = "https://albion-trade-pro-ogaq.onrender.com/scanner"; 
-    let todasOportunidades = [];
+            <div id="loading" class="loading-overlay">
+                🔍 Vasculhando mercados reais do Albion... <br>
+                <small>(Pode levar até 30 segundos na primeira busca)</small>
+            </div>
 
-    async function fetchData() {
-        const status = document.getElementById('status');
-        status.innerText = "Buscando na API do Albion... Isso pode levar 20 segundos...";
-        try {
-            const res = await fetch(API_URL);
-            todasOportunidades = await res.json();
-            
-            preencherCidades();
-            render();
-            status.style.display = "none";
-            document.getElementById('tabela').style.display = "table";
-        } catch (e) {
-            status.innerText = "Erro ao conectar com o backend. Verifique se o Render está online.";
+            <div class="table-container" id="tabelaPai" style="display: none;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Item</th>
+                            <th>De → Para</th>
+                            <th>Compra</th>
+                            <th>Venda (Líq.)</th>
+                            <th>Lucro</th>
+                            <th>ROI</th>
+                        </tr>
+                    </thead>
+                    <tbody id="corpoTabela"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // LINK DO SEU BACKEND NO RENDER
+        const API_URL = "https://albion-trade-pro-ogaq.onrender.com/scanner";
+        let dadosOriginais = [];
+
+        async function carregarDados() {
+            const loader = document.getElementById('loading');
+            const tabela = document.getElementById('tabelaPai');
+            const status = document.getElementById('api-status');
+
+            loader.style.display = 'block';
+            tabela.style.display = 'none';
+
+            try {
+                const response = await fetch(API_URL);
+                if (!response.ok) throw new Error('Falha na resposta');
+                
+                dadosOriginais = await response.json();
+                
+                popularFiltros();
+                filtrarEApparacer();
+
+                loader.style.display = 'none';
+                tabela.style.display = 'block';
+                status.innerText = "Online";
+                status.style.color = "#22c55e";
+            } catch (error) {
+                console.error(error);
+                loader.innerHTML = "❌ Erro ao conectar com o servidor.<br>Certifique-se que o backend no Render está 'Live'.";
+                status.innerText = "Offline";
+                status.style.color = "red";
+            }
         }
-    }
 
-    function preencherCidades() {
-        const origens = [...new Set(todasOportunidades.map(o => o.origem))];
-        const destinos = [...new Set(todasOportunidades.map(o => o.destino))];
-        
-        const selO = document.getElementById('fOrigem');
-        const selD = document.getElementById('fDestino');
-        
-        origens.forEach(c => selO.innerHTML += `<option value="${c}">${c}</option>`);
-        destinos.forEach(c => selD.innerHTML += `<option value="${c}">${c}</option>`);
-    }
+        function popularFiltros() {
+            const origens = [...new Set(dadosOriginais.map(d => d.origem))];
+            const destinos = [...new Set(dadosOriginais.map(d => d.destino))];
+            
+            const selO = document.getElementById('selectOrigem');
+            const selD = document.getElementById('selectDestino');
 
-    function formatMoney(v) {
-        return v.toLocaleString('pt-BR') + " silver";
-    }
+            // Limpa e repopula
+            selO.innerHTML = '<option value="">Qualquer Origem</option>';
+            selD.innerHTML = '<option value="">Qualquer Destino</option>';
 
-    function render() {
-        const busca = document.getElementById('search').value.toLowerCase();
-        const fO = document.getElementById('fOrigem').value;
-        const fD = document.getElementById('fDestino').value;
-        
-        const filtrados = todasOportunidades.filter(o => {
-            const bateNome = o.item.toLowerCase().includes(busca);
-            const bateOrigem = fO === "" || o.origem === fO;
-            const bateDestino = fD === "" || o.destino === fD;
-            return bateNome && bateOrigem && bateDestino;
-        });
+            origens.forEach(cid => selO.innerHTML += `<option value="${cid}">${cid}</option>`);
+            destinos.forEach(cid => selD.innerHTML += `<option value="${cid}">${cid}</option>`);
+        }
 
-        const corpo = document.getElementById('corpoTabela');
-        corpo.innerHTML = "";
+        function filtrarEApparacer() {
+            const busca = document.getElementById('searchInput').value.toLowerCase();
+            const fO = document.getElementById('selectOrigem').value;
+            const fD = document.getElementById('selectDestino').value;
 
-        filtrados.slice(0, 50).forEach(o => {
-            corpo.innerHTML += `
-                <tr>
-                    <td>${o.item.replace(/_/g, ' ')}</td>
-                    <td>${o.origem}</td>
-                    <td>${o.destino}</td>
-                    <td>${formatMoney(o.preco_compra)}</td>
-                    <td>${formatMoney(o.preco_venda)}</td>
-                    <td class="lucro">${formatMoney(o.lucro)}</td>
-                    <td>${o.roi}%</td>
-                </tr>
-            `;
-        });
-    }
-</script>
+            const filtrados = dadosOriginais.filter(d => {
+                const bateNome = d.nome.toLowerCase().includes(busca);
+                const bateO = fO === "" || d.origem === fO;
+                const bateD = fD === "" || d.destino === fD;
+                return bateNome && bateO && bateD;
+            });
 
+            const corpo = document.getElementById('corpoTabela');
+            corpo.innerHTML = "";
+
+            filtrados.forEach(d => {
+                corpo.innerHTML += `
+                    <tr>
+                        <td><strong>${d.nome}</strong><br><small style="color:gray">${d.id}</small></td>
+                        <td>${d.origem} ➔ ${d.destino}</td>
+                        <td>${d.compra.toLocaleString()}</td>
+                        <td>${d.venda_liquida.toLocaleString()}</td>
+                        <td class="lucro-text">+ ${d.lucro.toLocaleString()}</td>
+                        <td><span class="roi-badge">${d.roi}</span></td>
+                    </tr>
+                `;
+            });
+        }
+
+        // Tentar carregar ao abrir a página
+        window.onload = carregarDados;
+    </script>
 </body>
 </html>
