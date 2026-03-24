@@ -1,165 +1,109 @@
-const express = require("express");
-const axios = require("axios");
-const cors = require("cors");
-
+const express = require('express');
+const axios = require('axios');
+const cors = require('cors');
 const app = express();
+const PORT = process.env.PORT || 3001;
+
 app.use(cors());
 app.use(express.json());
 
-const PORT = process.env.PORT || 10000;
+// CONFIGURAÇÕES DE MERCADO
+const TAXA_MERCADO = 0.065; // 6.5% (Sem premium/Taxas variadas, ajustado para média segura)
+let cache = { data: null, lastUpdate: 0 };
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutos
 
-// 🔐 LOGIN
-const USERS = {
-  "negoh": {
-    password: "301309*Negoh",
-    premium: true
-  }
-};
-
-app.post("/login", (req,res)=>{
-  const {user, pass} = req.body;
-
-  if(USERS[user] && USERS[user].password === pass){
-    return res.json({ success:true, premium:true });
-  }
-
-  res.json({ success:false });
-});
-
-// CACHE
-let cache = { data: [], lastUpdate: 0 };
-const CACHE_TIME = 1000 * 60 * 10;
-
-// 🔥 MAIS DADOS
-const TIME_RANGE = 24;
-
-// 🔥 BASE REALISTA
-const BASE_ITEMS = [
-  "2H_SWORD","BOW","FIRE_STAFF","FROST_STAFF",
-  "ARCANE_STAFF","DAGGER","SPEAR","AXE","MACE",
-
-  "LEATHER_ARMOR","CLOTH_ROBE","PLATE_ARMOR",
-
-  "CAPE","BAG",
-
-  "PLANKS","METALBAR","LEATHER","CLOTH","STONEBLOCK",
-
-  "POTION_HEAL","POTION_ENERGY","MEAL_SOUP"
-];
-
-// GERAR ITENS (CORRETO)
-function gerarItens(){
-
-  let lista = [];
-
-  for(let t=4; t<=8; t++){
-    BASE_ITEMS.forEach(base=>{
-
-      lista.push(`T${t}_${base}`);
-
-      for(let e=1; e<=3; e++){
-        lista.push(`T${t}_${base}_LEVEL${e}@${e}`);
-      }
-
+// LISTA DE ITENS DE ALTO GIRO (T4 a T6)
+function gerarListaItens() {
+    const bases = [
+        "WOOD", "STONE", "ORE", "FIBER", "HIDE", "PLANKS", "STONEBLOCK", "METALBAR", "LEATHER", "CLOTH", // Recursos
+        "BAG", "CAPE", "MOUNT_HORSE", "MOUNT_OX", // Utilitários
+        "HEAD_LEATHER_SET1", "ARMOR_LEATHER_SET1", "SHOES_LEATHER_SET1", // Set Couro
+        "HEAD_PLATE_SET1", "ARMOR_PLATE_SET1", "SHOES_PLATE_SET1", // Set Placa
+        "HEAD_CLOTH_SET1", "ARMOR_CLOTH_SET1", "SHOES_CLOTH_SET1", // Set Tecido
+        "2H_SWORD", "2H_BOW", "2H_FIRE_STAFF", "2H_CLAW", "MAIN_CURSESTAFF", // Armas Populares
+        "FOOD_PIE", "FOOD_OMELETTE", "FOOD_STEW", "POTION_HEAL", "POTION_ENERGY" // Consumíveis
+    ];
+    const tiers = ["T4", "T5", "T6"];
+    const enchants = ["", "@1", "@2", "@3"];
+    
+    let lista = [];
+    tiers.forEach(t => {
+        bases.forEach(b => {
+            enchants.forEach(e => {
+                lista.push(`${t}_${b}${e}`);
+            });
+        });
     });
-  }
-
-  return lista;
+    return lista;
 }
 
-// NOME FORMATADO
-function nomeItem(code){
+const ITENS_PARA_BUSCAR = gerarListaItens();
 
-  const tier = code.match(/T(\d)/)[1];
+// ROTA PRINCIPAL DO SCANNER
+app.get('/scanner', async (req, res) => {
+    try {
+        const agora = Date.now();
+        if (cache.data && (agora - cache.lastUpdate < CACHE_DURATION)) {
+            console.log("Servindo do Cache");
+            return res.json(cache.data);
+        }
 
-  const enchantMatch = code.match(/@(\d)/);
-  const enchant = enchantMatch ? "." + enchantMatch[1] : "";
+        console.log("Buscando novos dados na API...");
+        // Dividimos em blocos para não travar a API do Albion
+        const itemChunks = ITENS_PARA_BUSCAR.slice(0, 300).join(',');
+        const url = `https://west.albion-online-data.com/api/v2/stats/prices/${itemChunks}?locations=Caerleon,Martlock,Bridgewatch,Lymhurst,FortSterling,Thetford`;
 
-  const base = code
-    .replace(`T${tier}_`, "")
-    .replace(/_LEVEL\d@/, "")
-    .replace(/@.*/, "")
-    .replaceAll("_"," ");
+        const response = await axios.get(url);
+        const resultados = processarLucros(response.data);
 
-  return `${base} T${tier}${enchant}`;
-}
+        cache.data = resultados;
+        cache.lastUpdate = agora;
 
-// FETCH
-async function fetchAll(items){
-
-  const reqs = items.map(i =>
-    axios.get(`https://www.albion-online-data.com/api/v2/stats/prices/${i}.json?time-scale=${TIME_RANGE}`)
-    .then(r=>({item:i,data:r.data}))
-    .catch(()=>null)
-  );
-
-  const res = await Promise.all(reqs);
-  return res.filter(r=>r && r.data.length);
-}
-
-// CALCULO
-function calcular(data,item){
-
-  let ops=[];
-
-  for(let a of data){
-    for(let b of data){
-
-      if(a.city === b.city) continue;
-
-      const compra = a.sell_price_min;
-      const venda = b.buy_price_max;
-
-      if(!compra || !venda) continue;
-
-      const taxa = venda * 0.065;
-      const lucro = venda - compra - taxa;
-
-      const volume = Math.floor(Math.random()*5000)+500;
-      const score = lucro + volume;
-
-      ops.push({
-        item,
-        name: nomeItem(item),
-        category: item.split("_")[1],
-        buyCity: a.city,
-        sellCity: b.city,
-        buyPrice: compra,
-        sellPrice: venda,
-        lucro: Math.round(lucro),
-        volume,
-        score
-      });
+        res.json(resultados);
+    } catch (error) {
+        res.status(500).json({ error: "Erro ao buscar dados" });
     }
-  }
-
-  return ops;
-}
-
-// SCANNER
-app.get("/scanner", async (req,res)=>{
-
-  const now = Date.now();
-
-  if(now - cache.lastUpdate < CACHE_TIME && cache.data.length){
-    return res.json(cache.data);
-  }
-
-  const items = gerarItens();
-  const data = await fetchAll(items);
-
-  let result=[];
-
-  for(let d of data){
-    result.push(...calcular(d.data,d.item));
-  }
-
-  result.sort((a,b)=>b.score - a.score);
-
-  cache.data = result.slice(0,1000);
-  cache.lastUpdate = now;
-
-  res.json(cache.data);
 });
 
-app.listen(PORT, ()=>console.log("Servidor rodando 🚀"));
+function processarLucros(data) {
+    let oportunidades = [];
+    
+    // Agrupar por item
+    const porItem = {};
+    data.forEach(entry => {
+        if (!porItem[entry.item_id]) porItem[entry.item_id] = [];
+        porItem[entry.item_id].push(entry);
+    });
+
+    for (const itemId in porItem) {
+        const precos = porItem[itemId];
+        
+        precos.forEach(compra => {
+            precos.forEach(venda => {
+                if (compra.city === venda.city) return;
+                if (compra.sell_price_min <= 0 || venda.sell_price_min <= 0) return;
+
+                const custo = compra.sell_price_min;
+                const receitaBruta = venda.sell_price_min;
+                const imposto = receitaBruta * TAXA_MERCADO;
+                const lucro = receitaBruta - custo - imposto;
+                const roi = (lucro / custo) * 100;
+
+                if (lucro > 1000 && roi > 5) { // Filtro básico de relevância
+                    oportunidades.push({
+                        item: itemId,
+                        origem: compra.city,
+                        destino: venda.city,
+                        preco_compra: custo,
+                        preco_venda: receitaBruta,
+                        lucro: Math.round(lucro),
+                        roi: roi.toFixed(2)
+                    });
+                }
+            });
+        });
+    }
+    return oportunidades.sort((a, b) => b.lucro - a.lucro);
+}
+
+app.listen(PORT, () => console.log(`Backend rodando na porta ${PORT}`));
