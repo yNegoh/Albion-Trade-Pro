@@ -5,81 +5,52 @@
 <title>Albion Trade Pro</title>
 
 <style>
-body { margin:0; font-family:Arial; background:#0f172a; color:white; display:flex; }
-
-.sidebar { width:220px; background:#020617; padding:15px; }
-.sidebar button { width:100%; margin-bottom:10px; padding:10px; background:#1e293b; color:white; border:none; }
-
-.main { flex:1; padding:20px; }
-
+body { background:#0f172a; color:white; font-family:Arial; }
 table { width:100%; margin-top:10px; border-collapse: collapse; }
 th, td { padding:10px; text-align:center; }
 th { background:#1e293b; cursor:pointer; }
-
-input, select { width:100%; background:#0f172a; color:white; border:1px solid #334155; }
-
+input { margin:5px; }
 .lucro { color:#22c55e; }
-.star { cursor:pointer; }
 </style>
 </head>
 
 <body>
 
-<div class="sidebar">
-  <button onclick="mostrarTodos()">📊 Mercado</button>
-  <button onclick="mostrarFavoritos()">⭐ Favoritos</button>
-</div>
-
-<div class="main">
-
 <h2>Albion Trade Pro</h2>
 
-<div>
 <input id="user" placeholder="Usuário">
 <input id="pass" type="password" placeholder="Senha">
 <button onclick="login()">Login</button>
 <span id="status"></span>
-</div>
 
-<br>
+<br><br>
 
-<input id="fItem" placeholder="Buscar item">
-<select id="fCategoria"></select>
-<select id="fCompra"></select>
-<select id="fVenda"></select>
+<button onclick="buscar()">Atualizar</button>
 
 <table>
 <thead>
 <tr>
-<th>⭐</th>
 <th onclick="ordenar('name')">Item</th>
-<th>Categoria</th>
 <th>Compra</th>
 <th>Venda</th>
 <th onclick="ordenar('lucro')">Lucro</th>
-<th onclick="ordenar('volume')">Volume</th>
-<th onclick="ordenar('score')">Score</th>
 </tr>
 </thead>
 <tbody id="tabela"></tbody>
 </table>
-
-</div>
 
 <script>
 
 const API = "https://albion-trade-pro-ogaq.onrender.com";
 
 let dados = [];
-let filtrado = [];
-let favoritos = JSON.parse(localStorage.getItem("fav") || "[]");
 let premium = false;
 
 // LOGIN
 async function login(){
 
-  const user = userInput.value;
-  const pass = passInput.value;
+  const user = document.getElementById("user").value;
+  const pass = document.getElementById("pass").value;
 
   const res = await fetch(API+"/login",{
     method:"POST",
@@ -91,96 +62,53 @@ async function login(){
 
   if(data.success){
     premium = data.premium;
-    status.innerText = "Logado como "+user;
+    document.getElementById("status").innerText = "Logado!";
     buscar();
   } else {
-    status.innerText = "Login inválido";
+    document.getElementById("status").innerText = "Erro login";
   }
 }
 
 // ENTER LOGIN
-pass.addEventListener("keypress", e=>{
-  if(e.key === "Enter") login();
+document.getElementById("pass").addEventListener("keypress", e=>{
+  if(e.key==="Enter") login();
 });
 
 // BUSCAR
 async function buscar(){
+
   const res = await fetch(API+"/scanner");
   dados = await res.json();
 
-  filtrado = [...dados];
-
   if(!premium){
-    filtrado = filtrado.slice(0,20);
+    dados = dados.slice(0,20);
   }
 
-  popularFiltros();
-  render();
-}
-
-// FILTROS
-function popularFiltros(){
-
-  const cats = [...new Set(dados.map(i=>i.category))];
-  const buys = [...new Set(dados.map(i=>i.buyCity))];
-  const sells = [...new Set(dados.map(i=>i.sellCity))];
-
-  fCategoria.innerHTML = '<option value="">Todos</option>';
-  cats.forEach(c=>fCategoria.innerHTML += `<option>${c}</option>`);
-
-  fCompra.innerHTML = '<option value="">Todos</option>';
-  buys.forEach(c=>fCompra.innerHTML += `<option>${c}</option>`);
-
-  fVenda.innerHTML = '<option value="">Todos</option>';
-  sells.forEach(c=>fVenda.innerHTML += `<option>${c}</option>`);
-}
-
-// FAVORITOS
-function toggleFav(item){
-  if(favoritos.includes(item)){
-    favoritos = favoritos.filter(f=>f!==item);
-  } else {
-    favoritos.push(item);
-  }
-  localStorage.setItem("fav", JSON.stringify(favoritos));
-  render();
-}
-
-function mostrarFavoritos(){
-  filtrado = dados.filter(i=>favoritos.includes(i.item));
-  render();
-}
-
-function mostrarTodos(){
-  filtrado = [...dados];
   render();
 }
 
 // RENDER
 function render(){
 
-  tabela.innerHTML = "";
+  tabela.innerHTML="";
 
-  filtrado.forEach(i=>{
+  dados.forEach(i=>{
     tabela.innerHTML += `
     <tr>
-      <td onclick="toggleFav('${i.item}')">${favoritos.includes(i.item)?"⭐":"☆"}</td>
       <td>${i.name}</td>
-      <td>${i.category}</td>
       <td>${i.buyCity}</td>
       <td>${i.sellCity}</td>
       <td class="lucro">${i.lucro}</td>
-      <td>${i.volume}</td>
-      <td>${i.score}</td>
     </tr>`;
   });
 }
 
-// ORDENAÇÃO
-let asc = false;
+// ORDENAR
+let asc=false;
+
 function ordenar(campo){
-  asc = !asc;
-  filtrado.sort((a,b)=> asc ? a[campo]-b[campo] : b[campo]-a[campo]);
+  asc=!asc;
+  dados.sort((a,b)=> asc ? a[campo]-b[campo] : b[campo]-a[campo]);
   render();
 }
 
