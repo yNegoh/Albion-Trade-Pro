@@ -4,164 +4,126 @@ const cors = require("cors");
 
 const app = express();
 app.use(cors());
+app.use(express.json());
 
 const PORT = process.env.PORT || 10000;
 
+// 🔐 LOGIN
+const USERS = {
+  "negoh": {
+    password: "301309*Negoh",
+    premium: true
+  }
+};
+
+app.post("/login", (req,res)=>{
+  const {user, pass} = req.body;
+
+  if(USERS[user] && USERS[user].password === pass){
+    return res.json({ success:true, premium:true });
+  }
+
+  res.json({ success:false });
+});
+
+// CACHE
 let cache = { data: [], lastUpdate: 0 };
 const CACHE_TIME = 1000 * 60 * 10;
 
-// 🔥 TEMPO (3 HORAS)
-const TIME_RANGE = 3;
+// 🔥 MAIS DADOS
+const TIME_RANGE = 24;
 
-// 🔥 BASE DE ITENS (ALTA DEMANDA)
+// 🔥 BASE REALISTA
 const BASE_ITEMS = [
-  // armas
   "2H_SWORD","BOW","FIRE_STAFF","FROST_STAFF",
   "ARCANE_STAFF","DAGGER","SPEAR","AXE","MACE",
 
-  // armaduras
   "LEATHER_ARMOR","CLOTH_ROBE","PLATE_ARMOR",
 
-  // utilidade
   "CAPE","BAG",
 
-  // recursos
-  "ORE","WOOD","STONE","FIBER","HIDE",
+  "PLANKS","METALBAR","LEATHER","CLOTH","STONEBLOCK",
 
-  // consumíveis
   "POTION_HEAL","POTION_ENERGY","MEAL_SOUP"
 ];
 
-// 🔥 NOMES BASE
-const NAMES = {
-  "2H_SWORD":"Espada Longa",
-  "BOW":"Arco",
-  "FIRE_STAFF":"Cajado de Fogo",
-  "FROST_STAFF":"Cajado de Gelo",
-  "ARCANE_STAFF":"Cajado Arcano",
-  "DAGGER":"Adaga",
-  "SPEAR":"Lança",
-  "AXE":"Machado",
-  "MACE":"Maça",
-
-  "LEATHER_ARMOR":"Armadura de Couro",
-  "CLOTH_ROBE":"Robe de Mago",
-  "PLATE_ARMOR":"Armadura de Placa",
-
-  "CAPE":"Capa",
-  "BAG":"Bolsa",
-
-  "ORE":"Minério",
-  "WOOD":"Madeira",
-  "STONE":"Pedra",
-  "FIBER":"Fibra",
-  "HIDE":"Couro",
-
-  "POTION_HEAL":"Poção de Cura",
-  "POTION_ENERGY":"Poção de Energia",
-  "MEAL_SOUP":"Sopa"
-};
-
-// 🔥 CATEGORIA
-const CATEGORY = {
-  "2H_SWORD":"Arma","BOW":"Arma","FIRE_STAFF":"Arma","FROST_STAFF":"Arma",
-  "ARCANE_STAFF":"Arma","DAGGER":"Arma","SPEAR":"Arma","AXE":"Arma","MACE":"Arma",
-
-  "LEATHER_ARMOR":"Armadura","CLOTH_ROBE":"Armadura","PLATE_ARMOR":"Armadura",
-
-  "CAPE":"Utilidade","BAG":"Utilidade",
-
-  "ORE":"Recurso","WOOD":"Recurso","STONE":"Recurso","FIBER":"Recurso","HIDE":"Recurso",
-
-  "POTION_HEAL":"Consumível","POTION_ENERGY":"Consumível","MEAL_SOUP":"Consumível"
-};
-
-// 🔥 GERADOR DE ITENS
+// GERAR ITENS (CORRETO)
 function gerarItens(){
 
   let lista = [];
 
-  for(let tier=4; tier<=8; tier++){
-    for(let base of BASE_ITEMS){
+  for(let t=4; t<=8; t++){
+    BASE_ITEMS.forEach(base=>{
 
-      lista.push(`T${tier}_${base}`);
-      lista.push(`T${tier}_${base}@1`);
-      lista.push(`T${tier}_${base}@2`);
-      lista.push(`T${tier}_${base}@3`);
-    }
+      lista.push(`T${t}_${base}`);
+
+      for(let e=1; e<=3; e++){
+        lista.push(`T${t}_${base}_LEVEL${e}@${e}`);
+      }
+
+    });
   }
 
   return lista;
 }
 
-// 🔥 NOME BONITO
-function getItemData(code){
+// NOME FORMATADO
+function nomeItem(code){
 
-  const base = code.split("_").slice(1).join("_").split("@")[0];
   const tier = code.match(/T(\d)/)[1];
-  const enchant = code.includes("@") ? "." + code.split("@")[1] : "";
 
-  return {
-    name: `${NAMES[base] || base} T${tier}${enchant}`,
-    category: CATEGORY[base] || "Outros"
-  };
+  const enchantMatch = code.match(/@(\d)/);
+  const enchant = enchantMatch ? "." + enchantMatch[1] : "";
+
+  const base = code
+    .replace(`T${tier}_`, "")
+    .replace(/_LEVEL\d@/, "")
+    .replace(/@.*/, "")
+    .replaceAll("_"," ");
+
+  return `${base} T${tier}${enchant}`;
 }
 
 // FETCH
-async function fetchAllPrices(items) {
+async function fetchAll(items){
 
-  const requests = items.map(item =>
-    axios.get(`https://www.albion-online-data.com/api/v2/stats/prices/${item}.json?time-scale=${TIME_RANGE}`)
-      .then(res => ({ item, data: res.data }))
-      .catch(()=>null)
+  const reqs = items.map(i =>
+    axios.get(`https://www.albion-online-data.com/api/v2/stats/prices/${i}.json?time-scale=${TIME_RANGE}`)
+    .then(r=>({item:i,data:r.data}))
+    .catch(()=>null)
   );
 
-  const results = await Promise.all(requests);
-  return results.filter(r=>r && r.data.length);
-}
-
-// VOLUME (fake por enquanto)
-function getVolume(){
-  return Math.floor(Math.random()*10000)+1000;
-}
-
-// SCORE
-function getScore(lucro, volume){
-  return Math.round(lucro*0.6 + volume*0.4);
+  const res = await Promise.all(reqs);
+  return res.filter(r=>r && r.data.length);
 }
 
 // CALCULO
-function calcularFlip(data,item){
+function calcular(data,item){
 
   let ops=[];
 
-  for(let buy of data){
-    for(let sell of data){
+  for(let a of data){
+    for(let b of data){
 
-      if(buy.city === sell.city) continue;
+      if(a.city === b.city) continue;
 
-      const compra = buy.sell_price_min;
-      const venda = sell.buy_price_max;
+      const compra = a.sell_price_min;
+      const venda = b.buy_price_max;
 
       if(!compra || !venda) continue;
-      if(venda > compra*5) continue;
 
       const taxa = venda * 0.065;
       const lucro = venda - compra - taxa;
 
-      if(lucro <= 0) continue;
-
-      const volume = getVolume();
-      const score = getScore(lucro, volume);
-
-      const info = getItemData(item);
+      const volume = Math.floor(Math.random()*5000)+500;
+      const score = lucro + volume;
 
       ops.push({
         item,
-        name: info.name,
-        category: info.category,
-        buyCity: buy.city,
-        sellCity: sell.city,
+        name: nomeItem(item),
+        category: item.split("_")[1],
+        buyCity: a.city,
+        sellCity: b.city,
         buyPrice: compra,
         sellPrice: venda,
         lucro: Math.round(lucro),
@@ -184,17 +146,17 @@ app.get("/scanner", async (req,res)=>{
   }
 
   const items = gerarItens();
-  const allData = await fetchAllPrices(items);
+  const data = await fetchAll(items);
 
-  let resultado = [];
+  let result=[];
 
-  for(let obj of allData){
-    resultado.push(...calcularFlip(obj.data,obj.item));
+  for(let d of data){
+    result.push(...calcular(d.data,d.item));
   }
 
-  resultado.sort((a,b)=>b.score - a.score);
+  result.sort((a,b)=>b.score - a.score);
 
-  cache.data = resultado.slice(0,1000);
+  cache.data = result.slice(0,1000);
   cache.lastUpdate = now;
 
   res.json(cache.data);
