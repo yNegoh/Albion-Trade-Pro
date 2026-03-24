@@ -1,120 +1,123 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-<meta charset="UTF-8">
-<title>Albion Trade Pro</title>
-
-<style>
-body { background:#0f172a; color:white; font-family:Arial; }
-table { width:100%; margin-top:10px; border-collapse: collapse; }
-th, td { padding:10px; text-align:center; }
-th { background:#1e293b; cursor:pointer; }
-input { margin:5px; }
-.lucro { color:#22c55e; }
-</style>
+    <meta charset="UTF-8">
+    <title>ALLBion Traders Pro</title>
+    <style>
+        body { background: #0f172a; color: white; font-family: sans-serif; margin: 0; }
+        .header { background: #1e293b; padding: 20px; text-align: center; border-bottom: 3px solid #22c55e; }
+        .container { padding: 20px; }
+        .controls { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; background: #1e293b; padding: 15px; border-radius: 8px; }
+        input, select { padding: 10px; border-radius: 5px; border: none; background: #334155; color: white; }
+        table { width: 100%; border-collapse: collapse; background: #1e293b; border-radius: 8px; overflow: hidden; }
+        th, td { padding: 15px; text-align: left; border-bottom: 1px solid #334155; }
+        th { background: #334155; color: #22c55e; }
+        .lucro { color: #22c55e; font-weight: bold; }
+        .btn { background: #22c55e; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        .loading { text-align: center; padding: 20px; font-style: italic; color: #94a3b8; }
+    </style>
 </head>
-
 <body>
 
-<h2>Albion Trade Pro</h2>
+<div class="header">
+    <h1>ALLBion Traders Pro <small style="font-size: 12px; color: #94a3b8;">Scanner de Elite</small></h1>
+</div>
 
-<input id="user" placeholder="Usuário">
-<input id="pass" type="password" placeholder="Senha">
-<button onclick="login()">Login</button>
-<span id="status"></span>
+<div class="container">
+    <div class="controls">
+        <input type="text" id="search" placeholder="Buscar item (ex: Bag, Sword)..." oninput="render()">
+        <select id="fOrigem" onchange="render()">
+            <option value="">Cidade Origem: Todas</option>
+        </select>
+        <select id="fDestino" onchange="render()">
+            <option value="">Cidade Destino: Todas</option>
+        </select>
+        <button class="btn" onclick="fetchData()">Atualizar Dados</button>
+    </div>
 
-<br><br>
+    <div id="status" class="loading">Clique em Atualizar para buscar oportunidades...</div>
 
-<button onclick="buscar()">Atualizar</button>
-
-<table>
-<thead>
-<tr>
-<th onclick="ordenar('name')">Item</th>
-<th>Compra</th>
-<th>Venda</th>
-<th onclick="ordenar('lucro')">Lucro</th>
-</tr>
-</thead>
-<tbody id="tabela"></tbody>
-</table>
+    <table id="tabela" style="display: none;">
+        <thead>
+            <tr>
+                <th>Item</th>
+                <th>Origem</th>
+                <th>Destino</th>
+                <th>Compra</th>
+                <th>Venda (-6.5%)</th>
+                <th>Lucro Líquido</th>
+                <th>ROI</th>
+            </tr>
+        </thead>
+        <tbody id="corpoTabela"></tbody>
+    </table>
+</div>
 
 <script>
+    // COLOQUE O LINK DO SEU RENDER AQUI ABAIXO
+    const API_URL = "https://albion-trade-pro-ogaq.onrender.com"; 
+    let todasOportunidades = [];
 
-const API = "https://albion-trade-pro-ogaq.onrender.com";
+    async function fetchData() {
+        const status = document.getElementById('status');
+        status.innerText = "Buscando na API do Albion... Isso pode levar 20 segundos...";
+        try {
+            const res = await fetch(API_URL);
+            todasOportunidades = await res.json();
+            
+            preencherCidades();
+            render();
+            status.style.display = "none";
+            document.getElementById('tabela').style.display = "table";
+        } catch (e) {
+            status.innerText = "Erro ao conectar com o backend. Verifique se o Render está online.";
+        }
+    }
 
-let dados = [];
-let premium = false;
+    function preencherCidades() {
+        const origens = [...new Set(todasOportunidades.map(o => o.origem))];
+        const destinos = [...new Set(todasOportunidades.map(o => o.destino))];
+        
+        const selO = document.getElementById('fOrigem');
+        const selD = document.getElementById('fDestino');
+        
+        origens.forEach(c => selO.innerHTML += `<option value="${c}">${c}</option>`);
+        destinos.forEach(c => selD.innerHTML += `<option value="${c}">${c}</option>`);
+    }
 
-// LOGIN
-async function login(){
+    function formatMoney(v) {
+        return v.toLocaleString('pt-BR') + " silver";
+    }
 
-  const user = document.getElementById("user").value;
-  const pass = document.getElementById("pass").value;
+    function render() {
+        const busca = document.getElementById('search').value.toLowerCase();
+        const fO = document.getElementById('fOrigem').value;
+        const fD = document.getElementById('fDestino').value;
+        
+        const filtrados = todasOportunidades.filter(o => {
+            const bateNome = o.item.toLowerCase().includes(busca);
+            const bateOrigem = fO === "" || o.origem === fO;
+            const bateDestino = fD === "" || o.destino === fD;
+            return bateNome && bateOrigem && bateDestino;
+        });
 
-  const res = await fetch(API+"/login",{
-    method:"POST",
-    headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({user,pass})
-  });
+        const corpo = document.getElementById('corpoTabela');
+        corpo.innerHTML = "";
 
-  const data = await res.json();
-
-  if(data.success){
-    premium = data.premium;
-    document.getElementById("status").innerText = "Logado!";
-    buscar();
-  } else {
-    document.getElementById("status").innerText = "Erro login";
-  }
-}
-
-// ENTER LOGIN
-document.getElementById("pass").addEventListener("keypress", e=>{
-  if(e.key==="Enter") login();
-});
-
-// BUSCAR
-async function buscar(){
-
-  const res = await fetch(API+"/scanner");
-  dados = await res.json();
-
-  if(!premium){
-    dados = dados.slice(0,20);
-  }
-
-  render();
-}
-
-// RENDER
-function render(){
-
-  tabela.innerHTML="";
-
-  dados.forEach(i=>{
-    tabela.innerHTML += `
-    <tr>
-      <td>${i.name}</td>
-      <td>${i.buyCity}</td>
-      <td>${i.sellCity}</td>
-      <td class="lucro">${i.lucro}</td>
-    </tr>`;
-  });
-}
-
-// ORDENAR
-let asc=false;
-
-function ordenar(campo){
-  asc=!asc;
-  dados.sort((a,b)=> asc ? a[campo]-b[campo] : b[campo]-a[campo]);
-  render();
-}
-
-// INIT
-buscar();
-
+        filtrados.slice(0, 50).forEach(o => {
+            corpo.innerHTML += `
+                <tr>
+                    <td>${o.item.replace(/_/g, ' ')}</td>
+                    <td>${o.origem}</td>
+                    <td>${o.destino}</td>
+                    <td>${formatMoney(o.preco_compra)}</td>
+                    <td>${formatMoney(o.preco_venda)}</td>
+                    <td class="lucro">${formatMoney(o.lucro)}</td>
+                    <td>${o.roi}%</td>
+                </tr>
+            `;
+        });
+    }
 </script>
 
 </body>
