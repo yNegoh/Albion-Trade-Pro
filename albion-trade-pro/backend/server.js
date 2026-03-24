@@ -1,171 +1,132 @@
 const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
+const fs = require('fs');
+const path = require('path');
+
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 10000; // Porta padrão para o Render
 
 app.use(cors());
 app.use(express.json());
 
-// CONFIGURAÇÕES DE MERCADO
-const TAXA_MERCADO = 0.065; // 6.5% (Sem premium/Taxas variadas, ajustado para média segura)
+// --- CONFIGURAÇÕES DO SISTEMA ---
+const TAXA_MERCADO = 0.065; // Taxa de 6.5% (Venda + Anúncio com Premium)
 let cache = { data: null, lastUpdate: 0 };
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutos
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutos de cache
 
-// LISTA DE ITENS DE ALTO GIRO (T4 a T6)
-function gerarListaItens() {
-    const bases = [
-        "WOOD", "STONE", "ORE", "FIBER", "HIDE", "PLANKS", "STONEBLOCK", "METALBAR", "LEATHER", "CLOTH", // Recursos
-        "BAG", "CAPE", "MOUNT_HORSE", "MOUNT_OX", // Utilitários
-        "HEAD_LEATHER_SET1", "ARMOR_LEATHER_SET1", "SHOES_LEATHER_SET1", // Set Couro
-        "HEAD_PLATE_SET1", "ARMOR_PLATE_SET1", "SHOES_PLATE_SET1", // Set Placa
-        "HEAD_CLOTH_SET1", "ARMOR_CLOTH_SET1", "SHOES_CLOTH_SET1", // Set Tecido
-        "2H_SWORD", "2H_BOW", "2H_FIRE_STAFF", "2H_CLAW", "MAIN_CURSESTAFF", // Armas Populares
-        "FOOD_PIE", "FOOD_OMELETTE", "FOOD_STEW", "POTION_HEAL", "POTION_ENERGY" // Consumíveis
-    ];
-    const tiers = ["T4", "T5", "T6"];
-    const enchants = ["", "@1", "@2", "@3"];
-    
-    let lista = [];
-    tiers.forEach(t => {
-        bases.forEach(b => {
-            enchants.forEach(e => {
-                lista.push(`${t}_${b}${e}`);
-            });
-        });
-    });
-    return lista;
+// Caminho para o arquivo de itens
+const itemsPath = path.join(__dirname, 'items.json');
+
+// Carregar o arquivo items.json (sua planilha convertida)
+let ITENS_DATA = [];
+try {
+    ITENS_DATA = JSON.parse(fs.readFileSync(itemsPath, 'utf8'));
+    console.log(`✅ Sucesso: ${ITENS_DATA.length} itens carregados do items.json`);
+} catch (err) {
+    console.error("❌ Erro ao ler items.json. Verifique se o arquivo está na pasta backend.");
 }
 
-const ITENS_PARA_BUSCAR = gerarListaItens();
+// Criar a string de IDs para a API (ex: T4_BAG,T5_BAG...)
+const IDS_PARA_BUSCAR = ITENS_DATA.map(i => i.id).join(',');
 
-// ROTA PRINCIPAL DO SCANNER
+// --- ROTAS ---
+
+// 1. Rota de teste (Saúde do sistema)
+app.get('/', (req, res) => {
+    res.send("Albion Trade Pro API está online! 🚀");
+});
+
+// 2. Rota do Scanner (Onde o lucro acontece)
 app.get('/scanner', async (req, res) => {
     try {
         const agora = Date.now();
+
+        // Verificar se temos dados recentes no cache
         if (cache.data && (agora - cache.lastUpdate < CACHE_DURATION)) {
-            console.log("Servindo do Cache");
+            console.log("📦 Servindo dados do cache...");
             return res.json(cache.data);
         }
 
-        console.log("Buscando novos dados na API...");
-        // Dividimos em blocos para não travar a API do Albion
-        const itemChunks = ITENS_PARA_BUSCAR.slice(0, 300).join(',');
-        const url = `https://west.albion-online-data.com/api/v2/stats/prices/${itemChunks}?locations=Caerleon,Martlock,Bridgewatch,Lymhurst,FortSterling,Thetford`;
+        console.log("🌐 Buscando novos preços na API do Albion Data Project...");
+        
+        // Chamada para a API oficial de dados da comunidade
+        const url = `https://west.albion-online-data.com/api/v2/stats/prices/${IDS_PARA_BUSCAR}?locations=Caerleon,Martlock,Bridgewatch,Lymhurst,FortSterling,Thetford`;
+        
+        const response = await axios.get(url, { timeout: 10000 }); // 10 segundos de limite
 
-        const response = await axios.get(url);
-        const resultados = processarLucros(response.data);
+        if (!response.data || response.data.length === 0) {
+            return res.status(404).json({ error: "API do Albion não retornou dados no momento." });
+        }
 
+        // Processar os lucros comparando todas as cidades
+        const resultados = processarOportunidades(response.data);
+
+        // Salvar no cache
         cache.data = resultados;
         cache.lastUpdate = agora;
 
         res.json(resultados);
+
     } catch (error) {
-        res.status(500).json({ error: "Erro ao buscar dados" });
+        console.error("❌ Erro no backend:", error.message);
+        res.status(500).json({ error: "Erro ao processar dados de mercado." });
     }
 });
 
-function processarLucros(data) {
+// --- LÓGICA DE CÁLCULO ---
+
+function processarOportunidades(dataAPI) {
     let oportunidades = [];
-    
-    // Agrupar por item
-    const porItem = {};
-    data.forEach(entry => {
-        if (!porItem[entry.item_id]) porItem[entry.item_id] = [];
-        porItem[entry.item_id].push(entry);
-    });
 
-    for (const itemId in porItem) {
-        const precos = porItem[itemId];
-        
-        precos.forEach(compra => {
-            precos.forEach(venda => {
-                if (compra.city === venda.city) return;
-                if (compra.sell_price_min <= 0 || venda.sell_price_min <= 0) return;
+    // Cruzamos os dados da nossa "Planilha" (ITENS_DATA) com os preços da API
+    ITENS_DATA.forEach(itemConfig => {
+        // Filtrar todos os preços que pertencem a este item específico
+        const precosDesteItem = dataAPI.filter(p => p.item_id === itemConfig.id);
 
-                const custo = compra.sell_price_min;
-                const receitaBruta = venda.sell_price_min;
-                const imposto = receitaBruta * TAXA_MERCADO;
-                const lucro = receitaBruta - custo - imposto;
-                const roi = (lucro / custo) * 100;
+        precosDesteItem.forEach(origem => {
+            precosDesteItem.forEach(destino => {
+                // Regras:
+                // 1. Não comparar a mesma cidade
+                // 2. Preços devem ser maiores que zero
+                if (origem.city === destino.city) return;
+                if (origem.sell_price_min <= 0 || destino.sell_price_min <= 0) return;
 
-                if (lucro > 1000 && roi > 5) { // Filtro básico de relevância
+                const precoCompra = origem.sell_price_min;
+                const precoVendaBruto = destino.sell_price_min;
+                
+                // Cálculo: Venda - (Venda * Taxa) - Compra
+                const taxaPrata = precoVendaBruto * TAXA_MERCADO;
+                const lucroLiquido = precoVendaBruto - taxaPrata - precoCompra;
+                const roi = (lucroLiquido / precoCompra) * 100;
+
+                // Filtro de Qualidade: Só mostrar se o lucro for relevante
+                if (lucroLiquido > 1000 && roi > 2) {
                     oportunidades.push({
-                        item: itemId,
-                        origem: compra.city,
-                        destino: venda.city,
-                        preco_compra: custo,
-                        preco_venda: receitaBruta,
-                        lucro: Math.round(lucro),
-                        roi: roi.toFixed(2)
-                    });
-                }
-            });
-        });
-    }
-    return oportunidades.sort((a, b) => b.lucro - a.lucro);
-}
-
-app.listen(PORT, () => console.log(`Backend rodando na porta ${PORT}`));
-const express = require('express');
-const axios = require('axios');
-const cors = require('cors');
-const fs = require('fs'); // Para ler o arquivo de itens
-const app = express();
-const PORT = process.env.PORT || 3001;
-
-app.use(cors());
-app.use(express.json());
-
-// Carregar dicionário de itens
-const ITENS_DATA = JSON.parse(fs.readFileSync('./items.json', 'utf8'));
-const IDS_PARA_BUSCAR = ITENS_DATA.map(i => i.id).join(',');
-
-app.get('/scanner', async (req, res) => {
-    try {
-        console.log("Buscando preços...");
-        const url = `https://west.albion-online-data.com/api/v2/stats/prices/${IDS_PARA_BUSCAR}?locations=Caerleon,Martlock,Bridgewatch,Lymhurst,FortSterling,Thetford`;
-        
-        const response = await axios.get(url);
-        const resultados = processarLucros(response.data);
-        res.json(resultados);
-    } catch (error) {
-        res.status(500).json({ error: "Erro no servidor" });
-    }
-});
-
-function processarLucros(data) {
-    let oportunidades = [];
-    const TAXA = 0.065;
-
-    ITENS_DATA.forEach(itemInfo => {
-        const precosDoItem = data.filter(p => p.item_id === itemInfo.id);
-        
-        precosDoItem.forEach(compra => {
-            precosDoItem.forEach(venda => {
-                if (compra.city === venda.city) return;
-                if (compra.sell_price_min <= 0 || venda.sell_price_min <= 0) return;
-
-                const custo = compra.sell_price_min;
-                const receitaLiq = venda.sell_price_min * (1 - TAXA);
-                const lucro = receitaLiq - custo;
-                const roi = (lucro / custo) * 100;
-
-                if (lucro > 500) {
-                    oportunidades.push({
-                        nome: itemInfo.name,
-                        origem: compra.city,
-                        destino: venda.city,
-                        preco_compra: custo,
-                        preco_venda: Math.round(receitaLiq),
-                        lucro: Math.round(lucro),
-                        roi: roi.toFixed(1)
+                        nome: itemConfig.name,
+                        id: itemConfig.id,
+                        origem: origem.city,
+                        destino: destino.city,
+                        compra: precoCompra,
+                        venda_liquida: Math.round(precoVendaBruto - taxaPrata),
+                        lucro: Math.round(lucroLiquido),
+                        roi: roi.toFixed(1) + "%"
                     });
                 }
             });
         });
     });
+
+    // Ordenar do maior lucro para o menor
     return oportunidades.sort((a, b) => b.lucro - a.lucro);
 }
 
-app.listen(PORT, () => console.log(`Rodando na porta ${PORT}`));
+app.listen(PORT, () => {
+    console.log(`
+    =========================================
+    ✅ BACKEND INICIADO COM SUCESSO
+    🚀 Porta: ${PORT}
+    📦 Itens monitorados: ${ITENS_DATA.length}
+    =========================================
+    `);
+});
