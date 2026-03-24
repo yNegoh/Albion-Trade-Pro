@@ -1,1 +1,18 @@
-
+[
+  { "id": "T4_BAG", "name": "Bolsa de Especialista (T4)" },
+  { "id": "T5_BAG", "name": "Bolsa de Perito (T5)" },
+  { "id": "T6_BAG", "name": "Bolsa de Mestre (T6)" },
+  { "id": "T4_CAPE", "name": "Capa de Especialista (T4)" },
+  { "id": "T5_CAPE", "name": "Capa de Perito (T5)" },
+  { "id": "T6_CAPE", "name": "Capa de Mestre (T6)" },
+  { "id": "T4_POTION_HEAL", "name": "Poção de Cura (T4)" },
+  { "id": "T6_POTION_HEAL", "name": "Poção de Cura (T6)" },
+  { "id": "T4_MEAL_STEW", "name": "Guisado de Carne (T4)" },
+  { "id": "T6_MEAL_STEW", "name": "Guisado de Carne (T6)" },
+  { "id": "T4_2H_SWORD", "name": "Montante (T4)" },
+  { "id": "T5_2H_SWORD", "name": "Montante (T5)" },
+  { "id": "T6_2H_SWORD", "name": "Montante (T6)" },
+  { "id": "T4_METALBAR", "name": "Barra de Aço (T4)" },
+  { "id": "T5_METALBAR", "name": "Barra de Aço de Runas (T5)" },
+  { "id": "T6_METALBAR", "name": "Barra de Aço Puro (T6)" }
+]
