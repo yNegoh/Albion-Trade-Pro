@@ -19,60 +19,62 @@ app.get('/scanner', async (req, res) => {
         let traducoes = {};
 
         itensFiltrados.forEach(item => {
-            [4, 5, 6, 7, 8].forEach(t => {
-                const variações = ["", "@1", "@2", "@3"];
-                variações.forEach((v, i) => {
+            [4, 5, 6, 7].forEach(t => {
+                ["", "@1", "@2", "@3"].forEach((v, i) => {
                     const id = `T${t}_${item.id}${v}`;
                     idsParaBuscar.push(id);
                     traducoes[id] = `${item.name} T${t}${i > 0 ? '.'+i : ''}`;
-                    if (item.mat) idsParaBuscar.push(`T${t}_${item.mat}${v}`);
                 });
             });
         });
 
-        const url = `https://west.albion-online-data.com/api/v2/stats/prices/${idsParaBuscar.slice(0, 300).join(',')}?locations=Caerleon,Martlock,Bridgewatch,Lymhurst,FortSterling,Thetford`;
-        const response = await axios.get(url);
-        const data = response.data;
+        // Albion Data Project API
+        const url = `https://west.albion-online-data.com/api/v2/stats/prices/${idsParaBuscar.slice(0, 250).join(',')}?locations=Caerleon,Martlock,Bridgewatch,Lymhurst,FortSterling,Thetford`;
+        const response = await axios.get(url, { timeout: 15000 });
+        const dataAPI = response.data;
 
         let resultados = [];
-        itensFiltrados.forEach(itemBase => {
-            const idsDesteItem = idsParaBuscar.filter(id => id.includes(itemBase.id));
-            
-            idsDesteItem.forEach(idProd => {
-                const precosProd = data.filter(p => p.item_id === idProd && p.sell_price_min > 0);
 
-                if (categoria === 'equip' || categoria === 'craft') {
-                    precosProd.forEach(origem => {
-                        precosProd.forEach(destino => {
-                            if (origem.city === destino.city) return;
-                            const lucroRef = destino.sell_price_min - origem.sell_price_min;
-                            if (lucroRef > 1000) {
-                                resultados.push({
-                                    id: idProd, n: traducoes[idProd], o: origem.city, d: destino.city,
-                                    c: origem.sell_price_min, v_bruta: destino.sell_price_min,
-                                    t: destino.sell_price_min_date
-                                });
-                            }
-                        });
-                    });
-                } else if (categoria === 'recurso') {
-                    // Lógica de refino simples (Mat -> Produto)
-                    const idMat = idProd.replace(itemBase.id, itemBase.mat);
-                    const precosMat = data.filter(p => p.item_id === idMat && p.sell_price_min > 0);
-                    precosMat.forEach(m => {
-                        precosProd.forEach(p => {
-                            resultados.push({
-                                id: idProd, n: traducoes[idProd], o: `Mat em ${m.city}`, d: `Venda em ${p.city}`,
-                                c: m.sell_price_min, v_bruta: p.sell_price_min, t: p.sell_price_min_date
-                            });
-                        });
+        dataAPI.forEach(p => {
+            if (p.sell_price_min <= 0 || p.quality === 5) return;
+
+            // Busca venda em outras cidades para a mesma qualidade
+            const destinos = dataAPI.filter(d => 
+                d.item_id === p.item_id && 
+                d.city !== p.city && 
+                d.quality === p.quality &&
+                d.sell_price_min > 0
+            );
+
+            destinos.forEach(venda => {
+                const precoCompra = p.sell_price_min;
+                const precoVenda = venda.sell_price_min;
+
+                // Filtro de sanidade para evitar preços fakes (troll)
+                if (precoVenda > (precoCompra * 2.5)) return;
+
+                const lucroBruto = precoVenda - precoCompra;
+                if (lucroBruto > 1000) {
+                    resultados.push({
+                        id: p.item_id, // Necessário para a imagem
+                        n: traducoes[p.item_id] || p.item_id,
+                        o: p.city,
+                        d: venda.city,
+                        c: precoCompra,
+                        v: precoVenda, // Enviando valor bruto para o front calcular a taxa
+                        t: venda.sell_price_min_date,
+                        q: p.quality
                     });
                 }
             });
         });
 
-        res.json(resultados.sort((a, b) => b.v_bruta - a.v_bruta).slice(0, 80));
-    } catch (e) { res.status(500).json([]); }
+        // Ordena por maior lucro bruto inicial e limita
+        res.json(resultados.sort((a, b) => (b.v - b.c) - (a.v - a.c)).slice(0, 60));
+    } catch (e) { 
+        console.error(e);
+        res.status(500).json([]); 
+    }
 });
 
-app.listen(PORT, () => console.log("Motor Pro Ativo"));
+app.listen(PORT, () => console.log("Servidor Online"));
