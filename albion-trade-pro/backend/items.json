@@ -1,18 +1,4 @@
 [
-  { "id": "2H_SWORD", "name": "Montante", "cat": "equip" },
-  { "id": "2H_BOW", "name": "Arco Longo", "cat": "equip" },
-  { "id": "ARMOR_PLATE_SET1", "name": "Armadura de Cavaleiro", "cat": "equip" },
-  { "id": "ARMOR_LEATHER_SET1", "name": "Casaco de Mercenário", "cat": "equip" },
-  
-  { "id": "PLANKS", "name": "Tábua", "cat": "recurso", "mat": "WOOD" },
-  { "id": "METALBAR", "name": "Barra", "cat": "recurso", "mat": "ORE" },
-  { "id": "LEATHER", "name": "Couro", "cat": "recurso", "mat": "HIDE" },
-  
-  { "id": "FOOD_STEW", "name": "Guisado", "cat": "comida", "mat": "RAW_BEEF" },
-  { "id": "POTION_HEAL", "name": "Poção Cura", "cat": "comida", "mat": "ALCOHOL" },
-  
-  { "id": "BAG", "name": "Bolsa", "cat": "craft", "mat": "LEATHER" },
-  { "id": "CAPE", "name": "Capa", "cat": "craft", "mat": "CLOTH" }
   { "id": "2H_SWORD", "name": "Montante", "cat": "equip", "req": 1 },
   { "id": "2H_BOW", "name": "Arco Longo", "cat": "equip", "req": 1 },
   { "id": "ARMOR_PLATE_SET1", "name": "Armadura de Cavaleiro", "cat": "equip", "req": 1 },
@@ -27,6 +13,4 @@
   
   { "id": "BAG", "name": "Bolsa", "cat": "craft", "mat": "LEATHER", "req": 12 },
   { "id": "CAPE", "name": "Capa", "cat": "craft", "mat": "CLOTH", "req": 6 }
-
-
 ]
