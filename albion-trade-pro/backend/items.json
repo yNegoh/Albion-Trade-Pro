@@ -1,16 +1,16 @@
 [
-  { "id": "BAG", "name": "Bolsa" },
-  { "id": "CAPE", "name": "Capa" },
-  { "id": "PLANKS", "name": "Tábua" },
-  { "id": "METALBAR", "name": "Barra de Metal" },
-  { "id": "LEATHER", "name": "Couro Curado" },
-  { "id": "CLOTH", "name": "Tecido Estofado" },
-  { "id": "2H_SWORD", "name": "Montante" },
-  { "id": "2H_BOW", "name": "Arco Longo" },
-  { "id": "ARMOR_PLATE_SET1", "name": "Armadura de Cavaleiro" },
-  { "id": "ARMOR_LEATHER_SET1", "name": "Casaco de Mercenário" },
-  { "id": "ARMOR_CLOTH_SET1", "name": "Robe de Mago" },
-  { "id": "MOUNT_HORSE", "name": "Cavalo de Montaria" },
-  { "id": "POTION_HEAL", "name": "Poção de Cura" },
-  { "id": "FOOD_STEW", "name": "Guisado de Carne" }
+  { "id": "2H_SWORD", "name": "Montante", "cat": "equip" },
+  { "id": "2H_BOW", "name": "Arco Longo", "cat": "equip" },
+  { "id": "ARMOR_PLATE_SET1", "name": "Armadura de Cavaleiro", "cat": "equip" },
+  { "id": "ARMOR_LEATHER_SET1", "name": "Casaco de Mercenário", "cat": "equip" },
+  
+  { "id": "PLANKS", "name": "Tábua", "cat": "recurso", "mat": "WOOD" },
+  { "id": "METALBAR", "name": "Barra", "cat": "recurso", "mat": "ORE" },
+  { "id": "LEATHER", "name": "Couro", "cat": "recurso", "mat": "HIDE" },
+  
+  { "id": "FOOD_STEW", "name": "Guisado", "cat": "comida", "mat": "RAW_BEEF" },
+  { "id": "POTION_HEAL", "name": "Poção Cura", "cat": "comida", "mat": "ALCOHOL" },
+  
+  { "id": "BAG", "name": "Bolsa", "cat": "craft", "mat": "LEATHER" },
+  { "id": "CAPE", "name": "Capa", "cat": "craft", "mat": "CLOTH" }
 ]
