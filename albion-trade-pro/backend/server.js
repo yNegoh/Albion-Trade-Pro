@@ -37,51 +37,49 @@ app.get('/scanner', async (req, res) => {
         
         const response = await axios.get(url, { timeout: 12000 });
         
-        const dadosAgrupados = {};
+        // --- NOVIDADE: AGRUPAR POR ITEM E CIDADE (ELIMINA DUPLICATAS DE QUALIDADE) ---
+        const melhorPrecoPorCidade = {};
         response.data.forEach(p => {
-            if (!dadosAgrupados[p.item_id]) dadosAgrupados[p.item_id] = [];
-            dadosAgrupados[p.item_id].push(p);
+            const chave = `${p.item_id}_${p.city}`;
+            // Se não existe ou se o preço atual é menor que o guardado (e maior que zero)
+            if (!melhorPrecoPorCidade[chave] || (p.sell_price_min > 0 && p.sell_price_min < melhorPrecoPorCidade[chave].sell_price_min)) {
+                if (p.sell_price_min > 0) melhorPrecoPorCidade[chave] = p;
+            }
         });
 
+        // Transformar o objeto de volta em array para o cálculo
+        const dataAPI = Object.values(melhorPrecoPorCidade);
+
         let oportunidades = [];
-        for (const itemId in dadosAgrupados) {
-            const precos = dadosAgrupados[itemId];
-            precos.forEach(origem => {
-                precos.forEach(destino => {
-                    if (origem.city === destino.city) return;
-                    
-                    const pCompra = origem.sell_price_min;
-                    const pVenda = destino.sell_price_min;
-                    const pOrdemCompra = destino.buy_price_max; // Preço que as pessoas estão oferecendo para comprar
+        dataAPI.forEach(origem => {
+            const destinoData = dataAPI.filter(p => p.item_id === origem.item_id && p.city !== origem.city);
+            
+            destinoData.forEach(destino => {
+                const pCompra = origem.sell_price_min;
+                const pVenda = destino.sell_price_min;
 
-                    // --- FILTROS ANTI-FAKE ---
-                    if (pCompra <= 100 || pVenda <= 100) return;
-                    
-                    // 1. Se o preço de venda é 2x maior que o de compra, é suspeito para esses itens
-                    if (pVenda > (pCompra * 2)) return;
+                // Filtro Anti-Troll mais rigoroso
+                if (pCompra < 500 || pVenda < 500) return;
+                if (pVenda > (pCompra * 2.2)) return; // Se o preço de venda for +120% que o de compra, ignore (troll)
 
-                    // 2. Se não existe Ordem de Compra ou ela é muito baixa, o item não tem liquidez (é ghost)
-                    if (pOrdemCompra <= 0 || pOrdemCompra < (pCompra * 0.5)) return;
+                const lucro = (pVenda * (1 - TAXA)) - pCompra;
+                const roi = (lucro / pCompra) * 100;
 
-                    const lucro = (pVenda * (1 - TAXA)) - pCompra;
-                    const roi = (lucro / pCompra) * 100;
-
-                    // 3. ROI entre 3% e 60% (Onde mora o lucro real de trade)
-                    if (lucro > 1500 && roi > 3 && roi < 60) {
-                        oportunidades.push({
-                            n: TRADUCOES[itemId] || itemId,
-                            o: origem.city,
-                            d: destino.city,
-                            c: pCompra,
-                            v: Math.round(pVenda * (1 - TAXA)),
-                            l: Math.round(lucro),
-                            r: roi.toFixed(1),
-                            t: destino.sell_price_min_date
-                        });
-                    }
-                });
+                // ROI Realista de mercado (Entre 4% e 55%)
+                if (lucro > 1500 && roi > 4 && roi < 55) {
+                    oportunidades.push({
+                        n: TRADUCOES[origem.item_id] || origem.item_id,
+                        o: origem.city,
+                        d: destino.city,
+                        c: pCompra,
+                        v: Math.round(pVenda * (1 - TAXA)),
+                        l: Math.round(lucro),
+                        r: roi.toFixed(1),
+                        t: destino.sell_price_min_date
+                    });
+                }
             });
-        }
+        });
 
         const final = oportunidades.sort((a, b) => b.l - a.l).slice(0, 80);
         cache.data = final;
@@ -90,4 +88,4 @@ app.get('/scanner', async (req, res) => {
     } catch (e) { res.status(500).json([]); }
 });
 
-app.listen(PORT, () => console.log("Motor Protegido Rodando"));
+app.listen(PORT, () => console.log("Motor Refinado"));
