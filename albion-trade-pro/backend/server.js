@@ -10,84 +10,77 @@ const PORT = process.env.PORT || 10000;
 app.use(cors());
 app.use(express.json());
 
-const TAXA_MERCADO = 0.065; 
+const TAXA = 0.065;
 let cache = { data: null, lastUpdate: 0 };
-const CACHE_DURATION = 3 * 60 * 1000; // 3 minutos
 
-// Gerar lista de itens baseada no items.json
 const baseItems = JSON.parse(fs.readFileSync(path.join(__dirname, 'items.json'), 'utf8'));
 let IDS_EXPANDIDOS = [];
 let TRADUCOES = {};
 
+// Gerador Otimizado
 baseItems.forEach(base => {
-    [4, 5, 6, 7].forEach(t => {
-        const idPlano = `T${t}_${base.id}`;
-        IDS_EXPANDIDOS.push(idPlano);
-        TRADUCOES[idPlano] = `${base.name} T${t}`;
-        [1, 2, 3].forEach(e => {
-            const idEnch = `T${t}_${base.id}@${e}`;
-            IDS_EXPANDIDOS.push(idEnch);
-            TRADUCOES[idEnch] = `${base.name} T${t}.${e}`;
+    [4, 5, 6].forEach(t => {
+        const variações = ["", "@1", "@2", "@3"];
+        variações.forEach((v, i) => {
+            const id = `T${t}_${base.id}${v}`;
+            IDS_EXPANDIDOS.push(id);
+            TRADUCOES[id] = `${base.name} T${t}${i > 0 ? '.'+i : ''}`;
         });
     });
 });
-
-app.get('/', (req, res) => res.send("API Online"));
 
 app.get('/scanner', async (req, res) => {
     try {
         const agora = Date.now();
-        if (cache.data && (agora - cache.lastUpdate < CACHE_DURATION)) return res.json(cache.data);
+        if (cache.data && (agora - cache.lastUpdate < 180000)) return res.json(cache.data);
 
-        // Buscamos um número seguro de itens para não travar a API (limite de 250)
-        const chunks = IDS_EXPANDIDOS.slice(0, 250).join(',');
+        // Busca em blocos menores para não sobrecarregar
+        const chunks = IDS_EXPANDIDOS.slice(0, 150).join(',');
         const url = `https://west.albion-online-data.com/api/v2/stats/prices/${chunks}?locations=Caerleon,Martlock,Bridgewatch,Lymhurst,FortSterling,Thetford`;
         
-        const response = await axios.get(url, { timeout: 15000 });
-        const resultados = processarOportunidades(response.data);
+        const response = await axios.get(url, { timeout: 10000 });
         
-        cache.data = resultados;
+        // Agrupar dados por item para evitar loops aninhados pesados
+        const dadosAgrupados = {};
+        response.data.forEach(p => {
+            if (!dadosAgrupados[p.item_id]) dadosAgrupados[p.item_id] = [];
+            dadosAgrupados[p.item_id].push(p);
+        });
+
+        let oportunidades = [];
+        for (const itemId in dadosAgrupados) {
+            const precos = dadosAgrupados[itemId];
+            precos.forEach(origem => {
+                precos.forEach(destino => {
+                    if (origem.city === destino.city || origem.sell_price_min <= 0 || destino.sell_price_min <= 0) return;
+                    
+                    // Filtro Anti-Troll (Evita bolsas de 8 milhões)
+                    if (destino.sell_price_min > (origem.sell_price_min * 2.5)) return;
+
+                    const lucro = (destino.sell_price_min * (1 - TAXA)) - origem.sell_price_min;
+                    const roi = (lucro / origem.sell_price_min) * 100;
+
+                    if (lucro > 2000 && roi < 80) {
+                        oportunidades.push({
+                            n: TRADUCOES[itemId] || itemId,
+                            o: origem.city,
+                            d: destino.city,
+                            c: origem.sell_price_min,
+                            v: Math.round(destino.sell_price_min * (1 - TAXA)),
+                            l: Math.round(lucro),
+                            r: roi.toFixed(1),
+                            t: destino.sell_price_min_date
+                        });
+                    }
+                });
+            });
+        }
+
+        const final = oportunidades.sort((a, b) => b.l - a.l).slice(0, 100);
+        cache.data = final;
         cache.lastUpdate = agora;
-        res.json(resultados);
-    } catch (error) {
-        console.error("Erro na busca:", error.message);
-        res.status(500).json({ error: "Erro ao buscar dados" });
-    }
+        res.json(final);
+    } catch (e) { res.status(500).send("Erro"); }
 });
 
-function processarOportunidades(dataAPI) {
-    let oportunidades = [];
-    dataAPI.forEach(origem => {
-        const destinoData = dataAPI.filter(p => p.item_id === origem.item_id && p.city !== origem.city);
-        
-        destinoData.forEach(destino => {
-            if (origem.sell_price_min <= 0 || destino.sell_price_min <= 0) return;
-
-            // --- FILTROS DE SEGURANÇA (PARA TIRAR OS LUCROS FALSOS) ---
-            // 1. Se o preço de venda for 3x maior que o de compra, é erro/troll
-            if (destino.sell_price_min > (origem.sell_price_min * 3)) return;
-
-            const lucroLiq = (destino.sell_price_min * (1 - TAXA_MERCADO)) - origem.sell_price_min;
-            const roi = (lucroLiq / origem.sell_price_min) * 100;
-
-            // 2. Se o ROI for impossível (mais de 100%), ignora.
-            if (roi > 100) return;
-
-            if (lucroLiq > 2000) { // Só mostra lucro acima de 2k
-                oportunidades.push({
-                    nome: TRADUCOES[origem.item_id] || origem.item_id,
-                    origem: origem.city,
-                    destino: destino.city,
-                    compra: origem.sell_price_min,
-                    venda: Math.round(destino.sell_price_min * (1 - TAXA_MERCADO)),
-                    lucro: Math.round(lucroLiq),
-                    roi: roi.toFixed(1) + "%",
-                    atualizado: destino.sell_price_min_date
-                });
-            }
-        });
-    });
-    return oportunidades.sort((a, b) => b.lucro - a.lucro);
-}
-
-app.listen(PORT, () => console.log("Servidor Rodando"));
+app.listen(PORT, () => console.log("Servidor Leve Rodando"));
