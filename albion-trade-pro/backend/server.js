@@ -56,6 +56,8 @@ app.get('/scanner', async (req, res) => {
                 const lucro = (venda.sell_price_min * (1 - TAXA)) - p.sell_price_min;
                 const roi = (lucro / p.sell_price_min) * 100;
 
+                // Mantemos o lucro mínimo de 2000 para não encher de lixo, 
+                // mas a ORDEM agora será pelo ROI.
                 if (lucro > 2000 && roi < 60) {
                     oportunidades.push({
                         n: TRADUCOES[p.item_id] || p.item_id,
@@ -64,7 +66,7 @@ app.get('/scanner', async (req, res) => {
                         c: p.sell_price_min,
                         v: Math.round(venda.sell_price_min * (1 - TAXA)),
                         l: Math.round(lucro),
-                        r: roi.toFixed(1),
+                        r: parseFloat(roi.toFixed(1)), // Agora enviamos como número para ordenar certo
                         q: p.quality,
                         t: venda.sell_price_min_date
                     });
@@ -72,11 +74,13 @@ app.get('/scanner', async (req, res) => {
             });
         });
 
-        const final = oportunidades.sort((a, b) => b.l - a.l).slice(0, 100);
+        // 🔥 A MÁGICA AQUI: Ordenando por ROI (r) do maior para o menor
+        const final = oportunidades.sort((a, b) => b.r - a.r).slice(0, 100);
+        
         cache.data = final;
         cache.lastUpdate = agora;
         res.json(final);
     } catch (e) { res.status(500).json([]); }
 });
 
-app.listen(PORT, () => console.log("Servidor Rodando"));
+app.listen(PORT, () => console.log("Motor Ordenado por ROI"));
