@@ -1,25 +1,34 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-    <meta charset="UTF-8"><title>Albion Trader V2</title>
+    <meta charset="UTF-8"><title>Albion Trader V3</title>
     <style>
         :root { --bg: #0f172a; --card: #1e293b; --accent: #22c55e; --gold: #fbbf24; }
         body { background: var(--bg); color: white; font-family: sans-serif; margin: 0; display: flex; height: 100vh; }
         .sidebar { width: 220px; background: var(--card); padding: 20px; border-right: 1px solid #334155; }
-        .nav-item { display: block; width: 100%; padding: 15px; margin-bottom: 8px; border-radius: 8px; background: transparent; border: none; color: #94a3b8; text-align: left; cursor: pointer; font-weight: bold; }
-        .nav-item.active { background: var(--accent); color: white; }
-        .main { flex: 1; padding: 25px; overflow-y: auto; }
-        .top-tools { display: flex; gap: 20px; background: var(--card); padding: 15px; border-radius: 12px; margin-bottom: 20px; align-items: center; border: 1px solid #334155; }
-        table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 10px; overflow: hidden; }
+        .nav-item { display: block; width: 100%; padding: 12px; margin-bottom: 5px; border-radius: 8px; background: transparent; border: none; color: #94a3b8; text-align: left; cursor: pointer; font-weight: bold; }
+        .nav-item.active { background: #22c55e; color: white; }
+        .main { flex: 1; padding: 20px; overflow-y: auto; }
+        
+        /* Top Bar Estilo Planilha */
+        .top-tools { display: flex; gap: 15px; background: var(--card); padding: 15px; border-radius: 12px; margin-bottom: 20px; align-items: center; border: 1px solid #334155; flex-wrap: wrap; }
+        .tool-group { display: flex; align-items: center; gap: 8px; background: #0f172a; padding: 8px 12px; border-radius: 8px; border: 1px solid #334155; }
+        label { font-size: 0.8rem; font-weight: bold; color: var(--accent); }
+        
+        /* Filtros de Cidade */
+        .filter-city { display: flex; gap: 10px; margin-bottom: 15px; }
+
+        table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 10px; overflow: hidden; font-size: 0.85rem; }
         th, td { padding: 12px; text-align: left; border-bottom: 1px solid #334155; }
         th { color: var(--accent); text-transform: uppercase; font-size: 0.7rem; }
         .lucro { color: var(--accent); font-weight: bold; }
-        .q-tag { font-size: 0.7rem; color: var(--gold); }
+        .ingredientes { font-size: 0.75rem; color: #94a3b8; }
+        .city-tag { background: #334155; padding: 2px 5px; border-radius: 4px; font-size: 0.7rem; }
     </style>
 </head>
 <body>
     <div class="sidebar">
-        <h2 style="color:var(--accent)">Albion Trader <small style="font-size:0.6rem; color:gray">v2.0</small></h2>
+        <h2 style="color:var(--accent)">Albion Trader <small style="color:gray">v3.0</small></h2>
         <button class="nav-item active" onclick="mudarCat('flip', this)">⚔️ Flip Equipamento</button>
         <button class="nav-item" onclick="mudarCat('refino', this)">🪵 Refino Recursos</button>
         <button class="nav-item" onclick="mudarCat('cozinha', this)">🥧 Cozinha/Alquimia</button>
@@ -28,22 +37,41 @@
 
     <div class="main">
         <div class="top-tools">
-            <label>👑 Premium: <input type="checkbox" id="checkPre" checked onchange="render()"></label>
-            <label>🔄 Retorno (RRR): 
+            <div class="tool-group">
+                <label>👑 Premium:</label> <input type="checkbox" id="checkPre" checked onchange="render()">
+            </div>
+            <div class="tool-group">
+                <label>🔄 Retorno (RRR):</label>
                 <select id="selRRR" onchange="render()">
-                    <option value="0">0% (Sem bônus)</option>
-                    <option value="0.15" selected>15.2% (Cidade s/ Foco)</option>
-                    <option value="0.43">43.7% (Cidade c/ Foco)</option>
+                    <option value="0">0%</option>
+                    <option value="0.152" selected>15.2% (S/ Foco)</option>
+                    <option value="0.437">43.7% (C/ Foco)</option>
                 </select>
-            </label>
+            </div>
+            <div class="tool-group">
+                <label>🏪 Taxa Loja:</label>
+                <input type="number" id="taxaLoja" value="500" style="width:60px; background:none; border:none; color:white" oninput="render()">
+            </div>
             <button onclick="mudarCat(ultimaCat)" style="margin-left:auto; background:var(--accent); color:white; border:none; padding:10px 20px; border-radius:8px; cursor:pointer; font-weight:bold">🔄 ATUALIZAR</button>
         </div>
 
-        <div id="msg" style="margin-bottom:10px; color:var(--accent)">Aguardando...</div>
+        <div class="filter-city">
+            <select id="selO" onchange="render()"><option value="">Onde Comprar: Todas</option></select>
+            <select id="selD" onchange="render()"><option value="">Onde Vender: Todas</option></select>
+        </div>
 
         <table>
             <thead>
-                <tr><th>Item</th><th>Rota / Material</th><th>Custo Real</th><th>Venda Líq</th><th>Lucro Real</th><th>ROI</th><th>Visto</th></tr>
+                <tr>
+                    <th>Item</th>
+                    <th>Ingredientes / Cidade</th>
+                    <th>Venda em</th>
+                    <th>Custo Real</th>
+                    <th>Venda Líq</th>
+                    <th>Lucro Real</th>
+                    <th>ROI</th>
+                    <th>Visto</th>
+                </tr>
             </thead>
             <tbody id="corpo"></tbody>
         </table>
@@ -57,51 +85,63 @@
 
         async function mudarCat(cat, btn) {
             ultimaCat = cat;
-            if(btn) {
-                document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-            }
-            document.getElementById('msg').innerText = "⏳ Buscando lucros...";
+            if(btn) { document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active')); btn.classList.add('active'); }
             try {
                 const r = await fetch(`${API}?cat=${cat}`);
                 dados = await r.json();
-                document.getElementById('msg').innerText = `✅ ${dados.length} oportunidades lucrativas encontradas!`;
+                popularCidades();
                 render();
-            } catch (e) { document.getElementById('msg').innerText = "❌ Erro ao conectar."; }
+            } catch (e) { alert("Erro ao conectar"); }
+        }
+
+        function popularCidades() {
+            const cidades = ["Martlock", "Lymhurst", "Bridgewatch", "FortSterling", "Thetford", "Caerleon"];
+            const sO = document.getElementById('selO'), sD = document.getElementById('selD');
+            sO.innerHTML = '<option value="">Onde Comprar: Todas</option>';
+            sD.innerHTML = '<option value="">Onde Vender: Todas</option>';
+            cidades.forEach(c => {
+                sO.innerHTML += `<option value="${c}">${c}</option>`;
+                sD.innerHTML += `<option value="${c}">${c}</option>`;
+            });
         }
 
         function render() {
             const isPre = document.getElementById('checkPre').checked;
             const rrr = parseFloat(document.getElementById('selRRR').value);
-            const taxa = isPre ? 0.065 : 0.105;
+            const taxaUso = parseInt(document.getElementById('taxaLoja').value) || 0;
+            const org = document.getElementById('selO').value;
+            const dest = document.getElementById('selD').value;
+            const taxaMkt = isPre ? 0.065 : 0.105;
             const corpo = document.getElementById('corpo');
             let html = "";
 
-            dados.forEach(d => {
-                // Se for craft/refino, aplica o RRR (Retorno de Recurso) no custo
-                const custoFinal = ultimaCat === 'flip' ? d.c : Math.round(d.c * (1 - rrr));
-                const vendaLiq = Math.round(d.v * (1 - taxa));
+            dados.filter(d => (org === "" || d.o === org) && (dest === "" || d.d === dest)).forEach(d => {
+                // Cálculo de custo com RRR + Taxa de Loja (simulada por item)
+                const custoMaterial = ultimaCat === 'flip' ? d.c_bruto : d.c_bruto * (1 - rrr);
+                const custoFinal = Math.round(custoMaterial + (taxaUso * 0.1)); // 0.1 é estimativa de nutrição
+                
+                const vendaLiq = Math.round(d.v_bruto * (1 - taxaMkt));
                 const lucro = vendaLiq - custoFinal;
                 const roi = ((lucro / custoFinal) * 100).toFixed(1);
 
-                if (lucro <= 0) return; // Só mostra se ainda der lucro após as taxas
+                if (lucro <= 0) return;
 
                 const diff = Math.floor((Date.now() - new Date(d.t)) / 60000);
-                const tempo = diff < 60 ? (diff < 0 ? 0 : diff) + 'm' : Math.floor(diff/60) + 'h';
 
                 html += `<tr>
                     <td>
-                        <div style="display:flex;align-items:center;gap:10px">
-                            <img src="https://render.albiononline.com/v1/item/${d.id}.png?quality=${d.q}" width="35">
-                            <div><b>${d.n}</b><br><span class="q-tag">${Q_MAP[d.q]}</span></div>
+                        <div style="display:flex;align-items:center;gap:8px">
+                            <img src="https://render.albiononline.com/v1/item/${d.id}.png?quality=${d.q}" width="32">
+                            <div><b>${d.n}</b><br><small style="color:var(--gold)">${Q_MAP[d.q]}</small></div>
                         </div>
                     </td>
-                    <td><small>${d.r}</small></td>
+                    <td class="ingredientes"><span class="city-tag">${d.o}</span><br>${d.details}</td>
+                    <td><b>${d.d}</b></td>
                     <td>${custoFinal.toLocaleString()}</td>
                     <td>${vendaLiq.toLocaleString()}</td>
                     <td class="lucro">+ ${lucro.toLocaleString()}</td>
                     <td>${roi}%</td>
-                    <td style="color:gray; font-size:0.8rem">${tempo}</td>
+                    <td>${diff < 60 ? (diff < 0 ? 0 : diff) + 'm' : Math.floor(diff/60) + 'h'}</td>
                 </tr>`;
             });
             corpo.innerHTML = html;
