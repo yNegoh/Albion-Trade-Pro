@@ -17,7 +17,7 @@ app.get('/scanner', async (req, res) => {
         let idsParaBuscar = new Set();
         
         itensFiltrados.forEach(item => {
-            [4, 5, 6].forEach(t => {
+            [4, 5, 6, 7].forEach(t => {
                 ["", "@1", "@2", "@3"].forEach(v => {
                     idsParaBuscar.add(`T${t}_${item.id}${v}`);
                     if (item.mat) idsParaBuscar.add(`T${t}_${item.mat}${v}`);
@@ -26,13 +26,13 @@ app.get('/scanner', async (req, res) => {
         });
 
         const url = `https://west.albion-online-data.com/api/v2/stats/prices/${Array.from(idsParaBuscar).slice(0, 300).join(',')}?locations=Caerleon,Martlock,Bridgewatch,Lymhurst,FortSterling,Thetford`;
-        const response = await axios.get(url);
+        const response = await axios.get(url, { timeout: 15000 });
         const dataAPI = response.data;
 
         let resultados = [];
 
         itensFiltrados.forEach(itemBase => {
-            [4, 5, 6].forEach(t => {
+            [4, 5, 6, 7].forEach(t => {
                 ["", "@1", "@2", "@3"].forEach((v, iEnch) => {
                     const idProd = `T${t}_${itemBase.id}${v}`;
                     const precosProd = dataAPI.filter(p => p.item_id === idProd && p.sell_price_min > 0 && p.quality < 5);
@@ -60,7 +60,7 @@ app.get('/scanner', async (req, res) => {
                         }
 
                         if (infoCompra.custo > 0) {
-                            if (venda.sell_price_min > (infoCompra.custo * 3)) return; 
+                            if (venda.sell_price_min > (infoCompra.custo * 2.5)) return; 
                             resultados.push({
                                 id: idProd, n: `${itemBase.name} T${t}${iEnch > 0 ? '.'+iEnch : ''}`,
                                 o: infoCompra.cidade, d: venda.city,
@@ -77,4 +77,4 @@ app.get('/scanner', async (req, res) => {
     } catch (e) { res.status(500).json([]); }
 });
 
-app.listen(PORT, () => console.log("V3.0 Online"));
+app.listen(PORT, () => console.log("Servidor V3.1 Pronto"));
