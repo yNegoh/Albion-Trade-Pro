@@ -6,8 +6,7 @@ const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 10000;
-app.use(cors());
-app.use(express.json());
+app.use(cors(), express.json());
 
 const baseItems = JSON.parse(fs.readFileSync(path.join(__dirname, 'items.json'), 'utf8'));
 
@@ -16,14 +15,11 @@ app.get('/scanner', async (req, res) => {
     try {
         const itensFiltrados = baseItems.filter(i => i.cat === categoria);
         let idsParaBuscar = new Set();
-        let infoBase = {};
-
+        
         itensFiltrados.forEach(item => {
             [4, 5, 6].forEach(t => {
-                ["", "@1", "@2", "@3"].forEach((v, i) => {
-                    const idProd = `T${t}_${item.id}${v}`;
-                    idsParaBuscar.add(idProd);
-                    infoBase[idProd] = { n: `${item.name} T${t}${i > 0 ? '.'+i : ''}`, mat: item.mat, req: item.req, baseId: item.id };
+                ["", "@1", "@2", "@3"].forEach(v => {
+                    idsParaBuscar.add(`T${t}_${item.id}${v}`);
                     if (item.mat) idsParaBuscar.add(`T${t}_${item.mat}${v}`);
                 });
             });
@@ -35,50 +31,50 @@ app.get('/scanner', async (req, res) => {
 
         let resultados = [];
 
-        itensFiltrados.forEach(itemConfig => {
-            const idsDesteItem = Array.from(idsParaBuscar).filter(id => id.includes(itemConfig.id));
-            
-            idsDesteItem.forEach(idProd => {
-                const precosProd = dataAPI.filter(p => p.item_id === idProd && p.sell_price_min > 0 && p.quality < 5);
+        itensFiltrados.forEach(itemBase => {
+            [4, 5, 6].forEach(t => {
+                ["", "@1", "@2", "@3"].forEach((v, iEnch) => {
+                    const idProd = `T${t}_${itemBase.id}${v}`;
+                    const precosProd = dataAPI.filter(p => p.item_id === idProd && p.sell_price_min > 0 && p.quality < 5);
 
-                precosProd.forEach(venda => {
-                    let custo = 0;
-                    let infoRota = "";
+                    precosProd.forEach(venda => {
+                        let infoCompra = { custo: 0, cidade: "", msg: "" };
 
-                    if (categoria === 'flip') {
-                        // Lógica de Compra Direta em outra cidade
-                        const compra = dataAPI.find(p => p.item_id === idProd && p.city !== venda.city && p.quality === venda.quality && p.sell_price_min > 0);
-                        if (compra) {
-                            custo = compra.sell_price_min;
-                            infoRota = `${compra.city} ➔ ${venda.city}`;
+                        if (categoria === 'flip') {
+                            const compra = dataAPI.filter(p => p.item_id === idProd && p.city !== venda.city && p.quality === venda.quality && p.sell_price_min > 0)
+                                                 .sort((a,b) => a.sell_price_min - b.sell_price_min)[0];
+                            if (compra) {
+                                infoCompra = { custo: compra.sell_price_min, cidade: compra.city, msg: "Flip direto" };
+                            }
+                        } else {
+                            const idMat = idProd.replace(itemBase.id, itemBase.mat);
+                            const mat = dataAPI.filter(p => p.item_id === idMat && p.sell_price_min > 0)
+                                               .sort((a,b) => a.sell_price_min - b.sell_price_min)[0];
+                            if (mat) {
+                                infoCompra = { 
+                                    custo: mat.sell_price_min * itemBase.req, 
+                                    cidade: mat.city, 
+                                    msg: `${itemBase.req}x ${itemBase.mat} (${mat.sell_price_min}/un)` 
+                                };
+                            }
                         }
-                    } else {
-                        // Lógica de Fabricação (Material -> Produto)
-                        const idMat = idProd.replace(itemConfig.id, itemConfig.mat);
-                        const mat = dataAPI.filter(p => p.item_id === idMat && p.sell_price_min > 0).sort((a,b)=>a.sell_price_min - b.sell_price_min)[0];
-                        if (mat) {
-                            custo = mat.sell_price_min * itemConfig.req;
-                            infoRota = `Material em ${mat.city} (x${itemConfig.req})`;
+
+                        if (infoCompra.custo > 0) {
+                            if (venda.sell_price_min > (infoCompra.custo * 3)) return; 
+                            resultados.push({
+                                id: idProd, n: `${itemBase.name} T${t}${iEnch > 0 ? '.'+iEnch : ''}`,
+                                o: infoCompra.cidade, d: venda.city,
+                                c_bruto: infoCompra.custo, v_bruto: venda.sell_price_min,
+                                details: infoCompra.msg, t: venda.sell_price_min_date, q: venda.quality
+                            });
                         }
-                    }
-
-                    if (custo > 0) {
-                        // Se venda > 2.5x custo, provavelmente é preço fake, ignoramos.
-                        if (venda.sell_price_min > (custo * 2.5)) return;
-
-                        resultados.push({
-                            id: idProd, n: infoBase[idProd].n,
-                            r: infoRota, c: custo, v: venda.sell_price_min,
-                            t: venda.sell_price_min_date, q: venda.quality
-                        });
-                    }
+                    });
                 });
             });
         });
 
-        // Retorna apenas o Top 60 ordenado pelo maior lucro absoluto
-        res.json(resultados.sort((a, b) => (b.v - b.c) - (a.v - a.c)).slice(0, 60));
+        res.json(resultados);
     } catch (e) { res.status(500).json([]); }
 });
 
-app.listen(PORT, () => console.log("V2.0 Online"));
+app.listen(PORT, () => console.log("V3.0 Online"));
