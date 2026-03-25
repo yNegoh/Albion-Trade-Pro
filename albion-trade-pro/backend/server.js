@@ -9,6 +9,7 @@ const PORT = process.env.PORT || 10000;
 app.use(cors());
 app.use(express.json());
 
+const TAXA = 0.065;
 const baseItems = JSON.parse(fs.readFileSync(path.join(__dirname, 'items.json'), 'utf8'));
 
 app.get('/scanner', async (req, res) => {
@@ -18,62 +19,58 @@ app.get('/scanner', async (req, res) => {
         let idsParaBuscar = [];
         let traducoes = {};
 
-        // Gera IDs T4 a T7 e encantamentos .0 a .3
         itensFiltrados.forEach(item => {
             [4, 5, 6, 7].forEach(t => {
                 ["", "@1", "@2", "@3"].forEach((v, i) => {
-                    const id = `T${t}_${item.id}${v}`;
-                    idsParaBuscar.push(id);
-                    traducoes[id] = `${item.name} T${t}${i > 0 ? '.'+i : ''}`;
+                    const idProd = `T${t}_${item.id}${v}`;
+                    idsParaBuscar.push(idProd);
+                    traducoes[idProd] = `${item.name} T${t}${i > 0 ? '.'+i : ''}`;
+                    if (item.mat) idsParaBuscar.push(`T${t}_${item.mat}${v}`);
                 });
             });
         });
 
-        const url = `https://west.albion-online-data.com/api/v2/stats/prices/${idsParaBuscar.slice(0, 250).join(',')}?locations=Caerleon,Martlock,Bridgewatch,Lymhurst,FortSterling,Thetford`;
+        const url = `https://west.albion-online-data.com/api/v2/stats/prices/${idsParaBuscar.slice(0, 300).join(',')}?locations=Caerleon,Martlock,Bridgewatch,Lymhurst,FortSterling,Thetford`;
         const response = await axios.get(url, { timeout: 15000 });
-        const dataAPI = response.data;
+        const data = response.data;
 
         let resultados = [];
+        itensFiltrados.forEach(itemBase => {
+            const idsDesteItem = idsParaBuscar.filter(id => id.includes(itemBase.id));
+            
+            idsDesteItem.forEach(idProd => {
+                const precosProd = data.filter(p => p.item_id === idProd && p.sell_price_min > 0 && p.quality < 5);
 
-        dataAPI.forEach(p => {
-            // REGRA: Ignorar se não houver preço ou se for OBRA-PRIMA (5)
-            if (p.sell_price_min <= 0 || p.quality === 5) return;
+                precosProd.forEach(venda => {
+                    // Se for EQUIP (Flip), compra o próprio item. Se for CRAFT/REFINE, compra a matéria-prima (mat).
+                    const idCompra = itemBase.mat ? idProd.replace(itemBase.id, itemBase.mat) : idProd;
+                    const precosCompra = data.filter(p => p.item_id === idCompra && p.sell_price_min > 0 && p.quality === (itemBase.mat ? 1 : venda.quality));
 
-            const destinos = dataAPI.filter(d => 
-                d.item_id === p.item_id && 
-                d.city !== p.city && 
-                d.quality === p.quality &&
-                d.sell_price_min > 0
-            );
+                    precosCompra.forEach(compra => {
+                        if (venda.city === compra.city && !itemBase.mat) return;
 
-            destinos.forEach(venda => {
-                const pCompra = p.sell_price_min;
-                const pVenda = venda.sell_price_min;
+                        // MATEMÁTICA REAL: Custo Total = Preço do Material * Quantidade Necessária
+                        const custoTotalCompra = compra.sell_price_min * itemBase.req;
+                        const precoVendaLíquido = venda.sell_price_min * (1 - TAXA);
+                        const lucroReal = precoVendaLíquido - custoTotalCompra;
+                        const roiReal = (lucroReal / custoTotalCompra) * 100;
 
-                // Filtro Anti-Troll (Preço de venda não pode ser irreal)
-                if (pVenda > (pCompra * 2.3)) return;
-
-                const lucroBruto = pVenda - pCompra;
-                if (lucroBruto > 1000) {
-                    resultados.push({
-                        id: p.item_id,
-                        n: traducoes[p.item_id] || p.item_id,
-                        o: p.city,
-                        d: venda.city,
-                        c: pCompra,
-                        v: pVenda,
-                        t: venda.sell_price_min_date,
-                        q: p.quality // 1, 2, 3 ou 4
+                        if (lucroReal > 1000 && roiReal < 80) {
+                            resultados.push({
+                                id: idProd, n: traducoes[idProd],
+                                o: itemBase.mat ? `Material em ${compra.city} (x${itemBase.req})` : compra.city,
+                                d: venda.city,
+                                c: custoTotalCompra, v: venda.sell_price_min,
+                                t: venda.sell_price_min_date, q: venda.quality
+                            });
+                        }
                     });
-                }
+                });
             });
         });
 
-        // Ordena por ROI (lucro/compra)
-        res.json(resultados.sort((a, b) => ((b.v*0.935)-b.c)/b.c - ((a.v*0.935)-a.c)/a.c).slice(0, 60));
-    } catch (e) { 
-        res.status(500).json([]); 
-    }
+        res.json(resultados.sort((a, b) => ((b.v*0.935)-a.c)/a.c - ((a.v*0.935)-a.c)/a.c).slice(0, 60));
+    } catch (e) { res.status(500).json([]); }
 });
 
-app.listen(PORT, () => console.log("Base Estável Online"));
+app.listen(PORT, () => console.log("Motor de Receitas Reais Online"));
