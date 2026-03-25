@@ -1,12 +1,15 @@
 [
-  { "id": "2H_SWORD", "name": "Montante", "cat": "equip", "req": 1 },
-  { "id": "ARMOR_LEATHER_SET1", "name": "Casaco de Mercenário", "cat": "equip", "req": 1 },
-  { "id": "2H_SHAPESHIFTER_MORGANA", "name": "Cajado Metamorfo", "cat": "craft", "mat": "PLANKS", "req": 16 },
-  { "id": "PLANKS", "name": "Tábua", "cat": "recurso", "mat": "WOOD", "req": 2 },
-  { "id": "METALBAR", "name": "Barra", "cat": "recurso", "mat": "ORE", "req": 2 },
-  { "id": "LEATHER", "name": "Couro", "cat": "recurso", "mat": "HIDE", "req": 2 },
-  { "id": "FOOD_STEW", "name": "Guisado", "cat": "comida", "mat": "RAW_BEEF", "req": 36 },
-  { "id": "POTION_HEAL", "name": "Poção Cura", "cat": "comida", "mat": "ALCOHOL", "req": 12 },
-  { "id": "BAG", "name": "Bolsa", "cat": "craft", "mat": "LEATHER", "req": 12 },
+  { "id": "2H_SWORD", "name": "Montante", "cat": "flip" },
+  { "id": "2H_BOW", "name": "Arco Longo", "cat": "flip" },
+  { "id": "ARMOR_LEATHER_SET1", "name": "Casaco Mercenário", "cat": "flip" },
+  { "id": "BAG", "name": "Bolsa", "cat": "flip" },
+
+  { "id": "PLANKS", "name": "Tábua", "cat": "refino", "mat": "WOOD", "req": 2 },
+  { "id": "METALBAR", "name": "Barra", "cat": "refino", "mat": "ORE", "req": 2 },
+
+  { "id": "FOOD_STEW", "name": "Guisado", "cat": "cozinha", "mat": "RAW_BEEF", "req": 36 },
+  { "id": "POTION_HEAL", "name": "Poção Cura", "cat": "cozinha", "mat": "ALCOHOL", "req": 12 },
+
+  { "id": "ARMOR_PLATE_SET1", "name": "Peitoral Placa", "cat": "craft", "mat": "METALBAR", "req": 16 },
   { "id": "CAPE", "name": "Capa", "cat": "craft", "mat": "CLOTH", "req": 6 }
 ]
