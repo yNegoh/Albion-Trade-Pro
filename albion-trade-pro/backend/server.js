@@ -18,6 +18,7 @@ app.get('/scanner', async (req, res) => {
         let idsParaBuscar = [];
         let traducoes = {};
 
+        // Gera IDs T4 a T7 e encantamentos .0 a .3
         itensFiltrados.forEach(item => {
             [4, 5, 6, 7].forEach(t => {
                 ["", "@1", "@2", "@3"].forEach((v, i) => {
@@ -28,7 +29,6 @@ app.get('/scanner', async (req, res) => {
             });
         });
 
-        // Albion Data Project API
         const url = `https://west.albion-online-data.com/api/v2/stats/prices/${idsParaBuscar.slice(0, 250).join(',')}?locations=Caerleon,Martlock,Bridgewatch,Lymhurst,FortSterling,Thetford`;
         const response = await axios.get(url, { timeout: 15000 });
         const dataAPI = response.data;
@@ -36,9 +36,9 @@ app.get('/scanner', async (req, res) => {
         let resultados = [];
 
         dataAPI.forEach(p => {
+            // REGRA: Ignorar se não houver preço ou se for OBRA-PRIMA (5)
             if (p.sell_price_min <= 0 || p.quality === 5) return;
 
-            // Busca venda em outras cidades para a mesma qualidade
             const destinos = dataAPI.filter(d => 
                 d.item_id === p.item_id && 
                 d.city !== p.city && 
@@ -47,34 +47,33 @@ app.get('/scanner', async (req, res) => {
             );
 
             destinos.forEach(venda => {
-                const precoCompra = p.sell_price_min;
-                const precoVenda = venda.sell_price_min;
+                const pCompra = p.sell_price_min;
+                const pVenda = venda.sell_price_min;
 
-                // Filtro de sanidade para evitar preços fakes (troll)
-                if (precoVenda > (precoCompra * 2.5)) return;
+                // Filtro Anti-Troll (Preço de venda não pode ser irreal)
+                if (pVenda > (pCompra * 2.3)) return;
 
-                const lucroBruto = precoVenda - precoCompra;
+                const lucroBruto = pVenda - pCompra;
                 if (lucroBruto > 1000) {
                     resultados.push({
-                        id: p.item_id, // Necessário para a imagem
+                        id: p.item_id,
                         n: traducoes[p.item_id] || p.item_id,
                         o: p.city,
                         d: venda.city,
-                        c: precoCompra,
-                        v: precoVenda, // Enviando valor bruto para o front calcular a taxa
+                        c: pCompra,
+                        v: pVenda,
                         t: venda.sell_price_min_date,
-                        q: p.quality
+                        q: p.quality // 1, 2, 3 ou 4
                     });
                 }
             });
         });
 
-        // Ordena por maior lucro bruto inicial e limita
-        res.json(resultados.sort((a, b) => (b.v - b.c) - (a.v - a.c)).slice(0, 60));
+        // Ordena por ROI (lucro/compra)
+        res.json(resultados.sort((a, b) => ((b.v*0.935)-b.c)/b.c - ((a.v*0.935)-a.c)/a.c).slice(0, 60));
     } catch (e) { 
-        console.error(e);
         res.status(500).json([]); 
     }
 });
 
-app.listen(PORT, () => console.log("Servidor Online"));
+app.listen(PORT, () => console.log("Base Estável Online"));
