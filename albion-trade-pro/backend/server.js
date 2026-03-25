@@ -9,7 +9,6 @@ const PORT = process.env.PORT || 10000;
 app.use(cors());
 app.use(express.json());
 
-const TAXA = 0.065;
 const baseItems = JSON.parse(fs.readFileSync(path.join(__dirname, 'items.json'), 'utf8'));
 
 app.get('/scanner', async (req, res) => {
@@ -42,35 +41,32 @@ app.get('/scanner', async (req, res) => {
                 const precosProd = data.filter(p => p.item_id === idProd && p.sell_price_min > 0 && p.quality < 5);
 
                 precosProd.forEach(venda => {
-                    // Se for EQUIP (Flip), compra o próprio item. Se for CRAFT/REFINE, compra a matéria-prima (mat).
                     const idCompra = itemBase.mat ? idProd.replace(itemBase.id, itemBase.mat) : idProd;
                     const precosCompra = data.filter(p => p.item_id === idCompra && p.sell_price_min > 0 && p.quality === (itemBase.mat ? 1 : venda.quality));
 
                     precosCompra.forEach(compra => {
                         if (venda.city === compra.city && !itemBase.mat) return;
+                        if (venda.sell_price_min > (compra.sell_price_min * 50)) return; // Anti-troll extra
 
-                        // MATEMÁTICA REAL: Custo Total = Preço do Material * Quantidade Necessária
-                        const custoTotalCompra = compra.sell_price_min * itemBase.req;
-                        const precoVendaLíquido = venda.sell_price_min * (1 - TAXA);
-                        const lucroReal = precoVendaLíquido - custoTotalCompra;
-                        const roiReal = (lucroReal / custoTotalCompra) * 100;
-
-                        if (lucroReal > 1000 && roiReal < 80) {
-                            resultados.push({
-                                id: idProd, n: traducoes[idProd],
-                                o: itemBase.mat ? `Material em ${compra.city} (x${itemBase.req})` : compra.city,
-                                d: venda.city,
-                                c: custoTotalCompra, v: venda.sell_price_min,
-                                t: venda.sell_price_min_date, q: venda.quality
-                            });
-                        }
+                        resultados.push({
+                            id: idProd, 
+                            n: traducoes[idProd],
+                            mat_n: itemBase.mat ? `${itemBase.mat} T${idProd.charAt(1)}` : null,
+                            o: compra.city,
+                            d: venda.city,
+                            c_unit: compra.sell_price_min, // Preço unitário do material
+                            req: itemBase.req, // Quantidade necessária
+                            v_bruta: venda.sell_price_min,
+                            t: venda.sell_price_min_date, 
+                            q: venda.quality
+                        });
                     });
                 });
             });
         });
 
-        res.json(resultados.sort((a, b) => ((b.v*0.935)-a.c)/a.c - ((a.v*0.935)-a.c)/a.c).slice(0, 60));
+        res.json(resultados);
     } catch (e) { res.status(500).json([]); }
 });
 
-app.listen(PORT, () => console.log("Motor de Receitas Reais Online"));
+app.listen(PORT, () => console.log("Motor Profissional Online"));
