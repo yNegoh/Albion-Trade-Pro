@@ -2,241 +2,114 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Albion Trader Pro</title>
     <style>
-        :root {
-            --bg: #0f172a;
-            --card: #1e293b;
-            --accent: #22c55e;
-            --text: #f8fafc;
-            --dim: #94a3b8;
-        }
-        * { box-sizing: border-box; }
-        body { 
-            background: var(--bg); 
-            color: var(--text); 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-            margin: 0; 
-            display: flex; 
-            height: 100vh; 
-            overflow: hidden; 
-        }
-        
-        /* Sidebar */
-        .sidebar { width: 240px; background: var(--card); padding: 20px; border-right: 1px solid #334155; display: flex; flex-direction: column; }
-        .sidebar h2 { color: var(--accent); margin-bottom: 30px; font-size: 1.5rem; }
-        .nav-item { 
-            display: block; width: 100%; padding: 12px; margin-bottom: 8px; 
-            border-radius: 8px; background: transparent; border: none; 
-            color: var(--dim); text-align: left; cursor: pointer; font-weight: bold; 
-            transition: 0.2s;
-        }
-        .nav-item:hover { background: #334155; color: white; }
+        :root { --bg: #0f172a; --card: #1e293b; --accent: #22c55e; --dim: #94a3b8; }
+        body { background: var(--bg); color: white; font-family: sans-serif; margin: 0; display: flex; height: 100vh; overflow: hidden; }
+        .sidebar { width: 240px; background: var(--card); padding: 20px; border-right: 1px solid #334155; }
+        .nav-item { display: block; width: 100%; padding: 12px; margin-bottom: 8px; border-radius: 8px; background: transparent; border: none; color: var(--dim); text-align: left; cursor: pointer; font-weight: bold; }
         .nav-item.active { background: var(--accent); color: white; }
-
-        /* Main Content */
-        .main { flex: 1; display: flex; flex-direction: column; height: 100vh; overflow-y: auto; }
-        .page { display: none; padding: 25px; width: 100%; }
+        .main { flex: 1; display: flex; flex-direction: column; overflow-y: auto; }
+        .page { display: none; padding: 25px; }
         .page.active { display: block; }
-
-        /* Componentes */
-        .filter-bar { 
-            display: flex; gap: 10px; margin-bottom: 20px; background: var(--card); 
-            padding: 15px; border-radius: 10px; flex-wrap: wrap; align-items: center;
-            border: 1px solid #334155;
-        }
-        input, select { 
-            background: #0f172a; color: white; border: 1px solid #334155; 
-            padding: 10px; border-radius: 5px; outline: none;
-        }
-        input:focus { border-color: var(--accent); }
-
-        table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 10px; overflow: hidden; }
-        th, td { padding: 15px; text-align: left; border-bottom: 1px solid #334155; }
-        th { color: var(--accent); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 1px; }
-        
-        .lucro-val { color: var(--accent); font-weight: bold; }
-        .roi-tag { background: rgba(34, 197, 94, 0.1); color: var(--accent); padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; }
-        .btn-update { background: var(--accent); color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; }
-        
-        #status-bar { color: var(--accent); font-weight: bold; margin-bottom: 15px; }
+        .filter-bar { display: flex; gap: 10px; margin-bottom: 20px; background: var(--card); padding: 15px; border-radius: 10px; }
+        input, select { background: #0f172a; color: white; border: 1px solid #334155; padding: 10px; border-radius: 5px; }
+        table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 10px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #334155; }
+        th { color: var(--accent); font-size: 0.75rem; text-transform: uppercase; }
+        .lucro-ok { color: var(--accent); font-weight: bold; }
     </style>
 </head>
 <body>
 
     <div class="sidebar">
-        <h2>Albion Trader</h2>
-        <button class="nav-item active" onclick="showPage('scanner', this)">📊 Scanner Global</button>
-        <button class="nav-item" onclick="showPage('top', this)">💎 Top Lucros</button>
-        <button class="nav-item" onclick="showPage('config', this)">⚙️ Configurações</button>
-        
-        <div style="margin-top: auto; font-size: 0.7rem; color: var(--dim);">
-            Status API: <span id="api-indicator">🟢 Online</span>
-        </div>
+        <h2 style="color:var(--accent)">Albion Trader</h2>
+        <button class="nav-item active" onclick="nav('scanner', this)">📊 Scanner Global</button>
+        <button class="nav-item" onclick="nav('top', this)">💎 Top Lucros</button>
+        <button class="nav-item" onclick="nav('config', this)">⚙️ Configurações</button>
     </div>
 
     <div class="main">
-        <!-- PÁGINA: SCANNER -->
-        <div id="page-scanner" class="page active">
+        <!-- SCANNER -->
+        <div id="p-scanner" class="page active">
             <div class="filter-bar">
-                <input type="text" id="srcNome" placeholder="Filtrar item..." oninput="renderizar()">
-                <select id="srcOrigem" onchange="renderizar()"><option value="">Toda Origem</option></select>
-                <select id="srcDestino" onchange="renderizar()"><option value="">Todo Destino</option></select>
-                <button class="btn-update" onclick="buscarDados()">🔄 ATUALIZAR</button>
+                <input type="text" id="fNome" placeholder="Filtrar item..." oninput="render()">
+                <button onclick="buscar()" style="background:var(--accent); color:white; border:none; padding:10px; border-radius:5px; cursor:pointer; font-weight:bold">🔄 ATUALIZAR</button>
             </div>
-
-            <div id="status-bar">Aguardando comando...</div>
-
+            <div id="status-msg" style="margin-bottom:10px; color:var(--accent)">Aguardando...</div>
             <table>
                 <thead>
-                    <tr>
-                        <th>Item</th>
-                        <th>Rota</th>
-                        <th>Compra</th>
-                        <th>Venda (Líq)</th>
-                        <th>Lucro</th>
-                        <th>ROI</th>
-                        <th>Visto</th>
-                    </tr>
+                    <tr><th>Item</th><th>Rota</th><th>Compra</th><th>Venda Líq</th><th>Lucro</th><th>ROI</th><th>Visto</th></tr>
                 </thead>
-                <tbody id="tabela-corpo"></tbody>
+                <tbody id="corpo"></tbody>
             </table>
         </div>
 
-        <!-- PÁGINA: TOP LUCROS -->
-        <div id="page-top" class="page">
-            <h2 style="color:var(--accent)">💎 Oportunidades de Elite</h2>
-            <p style="color:var(--dim)">Apenas itens com ROI acima de 15% e lucro real comprovado.</p>
-            <div id="top-content">
-                <!-- Conteúdo preenchido via JS -->
-            </div>
+        <!-- TOP LUCROS -->
+        <div id="p-top" class="page">
+            <h2>💎 Itens de Elite</h2>
+            <div id="corpo-top">Use o Scanner primeiro para ver os destaques.</div>
         </div>
 
-        <!-- PÁGINA: CONFIGURAÇÕES -->
-        <div id="page-config" class="page">
-            <h2 style="color:var(--accent)">⚙️ Ajustes</h2>
-            <div class="filter-bar" style="flex-direction: column; align-items: flex-start;">
-                <p>Configurações de cálculo (v1.0)</p>
-                <label>Taxa de Mercado: <input type="text" value="6.5%" disabled></label>
-                <label>Filtro Anti-Troll: <span style="color:var(--accent)">Ativo</span></label>
-            </div>
+        <!-- CONFIG -->
+        <div id="p-config" class="page">
+            <h2>⚙️ Configurações</h2>
+            <p>Taxa atual: 6.5% (Premium)</p>
         </div>
     </div>
 
     <script>
-        // URL DO SEU BACKEND NO RENDER
-        const URL_API = "https://albion-trade-pro-ogaq.onrender.com/scanner";
-        let bancoDeDados = [];
+        const API = "https://albion-trade-pro-ogaq.onrender.com/scanner";
+        let dadosRaw = [];
 
-        // NAVEGAÇÃO
-        function showPage(pageId, btn) {
-            // Esconde páginas
+        function nav(id, btn) {
             document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-            // Remove active dos botões
             document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
-            
-            // Ativa a página e o botão
-            document.getElementById('page-' + pageId).classList.add('active');
+            document.getElementById('p-' + id).classList.add('active');
             btn.classList.add('active');
         }
 
-        // BUSCA DE DADOS
-        async function buscarDados() {
-            const status = document.getElementById('status-bar');
-            status.innerText = "⏳ Conectando ao servidor Albion... (15-30s)";
-            
+        async function buscar() {
+            const st = document.getElementById('status-msg');
+            st.innerText = "⏳ Buscando no servidor... pode levar 20s.";
             try {
-                const r = await fetch(URL_API);
-                const json = await r.json();
-                
-                // Filtro extra no frontend para garantir que NADA fake passe
-                bancoDeDados = json.filter(item => {
-                    const roiNum = parseFloat(item.roi);
-                    return roiNum < 100; // Se o ROI for +100%, ignora
-                });
-
-                status.innerText = `✅ ${bancoDeDados.length} Oportunidades reais encontradas.`;
-                
-                atualizarDropdowns();
-                renderizar();
-            } catch (err) {
-                status.innerText = "❌ Erro ao buscar dados. Verifique sua internet.";
-                console.error(err);
+                const r = await fetch(API);
+                dadosRaw = await r.json();
+                st.innerText = `✅ ${dadosRaw.length} oportunidades encontradas!`;
+                render();
+            } catch (e) {
+                st.innerText = "❌ Erro ao conectar. Tente novamente.";
             }
         }
 
-        function atualizarDropdowns() {
-            const origens = [...new Set(bancoDeDados.map(d => d.origem))].sort();
-            const destinos = [...new Set(bancoDeDados.map(d => d.destino))].sort();
-            
-            const selO = document.getElementById('srcOrigem');
-            const selD = document.getElementById('srcDestino');
-
-            selO.innerHTML = '<option value="">Toda Origem</option>';
-            selD.innerHTML = '<option value="">Todo Destino</option>';
-
-            origens.forEach(c => selO.innerHTML += `<option value="${c}">${c}</option>`);
-            destinos.forEach(c => selD.innerHTML += `<option value="${c}">${c}</option>`);
-        }
-
-        function formatTime(dateStr) {
-            const diff = Math.floor((Date.now() - new Date(dateStr)) / 60000);
-            return diff < 60 ? diff + "m" : Math.floor(diff/60) + "h";
-        }
-
-        function renderizar() {
-            const query = document.getElementById('srcNome').value.toLowerCase();
-            const fOrg = document.getElementById('srcOrigem').value;
-            const fDest = document.getElementById('srcDestino').value;
-            const corpo = document.getElementById('tabela-corpo');
-            
+        function render() {
+            const busca = document.getElementById('fNome').value.toLowerCase();
+            const corpo = document.getElementById('corpo');
             corpo.innerHTML = "";
 
-            const filtrados = bancoDeDados.filter(d => {
-                const matchNome = d.nome.toLowerCase().includes(query);
-                const matchOrg = fOrg === "" || d.origem === fOrg;
-                const matchDest = fDest === "" || d.destino === fDest;
-                return matchNome && matchOrg && matchDest;
-            });
-
+            const filtrados = dadosRaw.filter(d => d.nome.toLowerCase().includes(busca));
+            
             filtrados.forEach(d => {
-                const row = `
+                corpo.innerHTML += `
                     <tr>
                         <td><strong>${d.nome}</strong></td>
                         <td>${d.origem} ➔ ${d.destino}</td>
                         <td>${d.compra.toLocaleString()}</td>
                         <td>${d.venda.toLocaleString()}</td>
-                        <td class="lucro-val">+ ${d.lucro.toLocaleString()}</td>
-                        <td><span class="roi-tag">${d.roi}</span></td>
-                        <td style="color:var(--dim); font-size:0.8rem">${formatTime(d.atualizado)}</td>
+                        <td class="lucro-ok">+ ${d.lucro.toLocaleString()}</td>
+                        <td>${d.roi}</td>
+                        <td style="color:var(--dim); font-size:0.8rem">${new Date(d.atualizado).toLocaleTimeString()}</td>
                     </tr>
                 `;
-                corpo.innerHTML += row;
             });
 
-            // Se for a página TOP, atualiza o resumo lá também
-            atualizarPaginaTop(filtrados);
+            // Preenche aba Top
+            const topArea = document.getElementById('corpo-top');
+            const tops = filtrados.filter(f => parseFloat(f.roi) > 20).slice(0,5);
+            topArea.innerHTML = tops.map(t => `<p>🔥 <b>${t.nome}</b>: ROI de ${t.roi}</p>`).join('');
         }
 
-        function atualizarPaginaTop(dados) {
-            const container = document.getElementById('top-content');
-            const tops = dados.filter(d => parseFloat(d.roi) > 15).slice(0, 5);
-            
-            if(tops.length === 0) {
-                container.innerHTML = "<p>Nenhum item com ROI > 15% agora.</p>";
-                return;
-            }
-
-            container.innerHTML = tops.map(t => `
-                <div style="background:#2d3748; padding:15px; margin-bottom:10px; border-radius:8px; border-left:4px solid var(--accent)">
-                    <strong>${t.nome}</strong>: Lucro de ${t.lucro.toLocaleString()} silver (${t.roi} ROI)
-                </div>
-            `).join('');
-        }
-
-        // Inicia a busca ao carregar
-        document.addEventListener('DOMContentLoaded', buscarDados);
+        window.onload = buscar;
     </script>
 </body>
 </html>
