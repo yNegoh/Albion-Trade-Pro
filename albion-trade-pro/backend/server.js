@@ -17,11 +17,9 @@ const baseItems = JSON.parse(fs.readFileSync(path.join(__dirname, 'items.json'),
 let IDS_EXPANDIDOS = [];
 let TRADUCOES = {};
 
-// Gerador Otimizado
 baseItems.forEach(base => {
     [4, 5, 6].forEach(t => {
-        const variações = ["", "@1", "@2", "@3"];
-        variações.forEach((v, i) => {
+        ["", "@1", "@2", "@3"].forEach((v, i) => {
             const id = `T${t}_${base.id}${v}`;
             IDS_EXPANDIDOS.push(id);
             TRADUCOES[id] = `${base.name} T${t}${i > 0 ? '.'+i : ''}`;
@@ -32,15 +30,13 @@ baseItems.forEach(base => {
 app.get('/scanner', async (req, res) => {
     try {
         const agora = Date.now();
-        if (cache.data && (agora - cache.lastUpdate < 180000)) return res.json(cache.data);
+        if (cache.data && (agora - cache.lastUpdate < 120000)) return res.json(cache.data);
 
-        // Busca em blocos menores para não sobrecarregar
-        const chunks = IDS_EXPANDIDOS.slice(0, 150).join(',');
+        const chunks = IDS_EXPANDIDOS.slice(0, 180).join(',');
         const url = `https://west.albion-online-data.com/api/v2/stats/prices/${chunks}?locations=Caerleon,Martlock,Bridgewatch,Lymhurst,FortSterling,Thetford`;
         
-        const response = await axios.get(url, { timeout: 10000 });
+        const response = await axios.get(url, { timeout: 12000 });
         
-        // Agrupar dados por item para evitar loops aninhados pesados
         const dadosAgrupados = {};
         response.data.forEach(p => {
             if (!dadosAgrupados[p.item_id]) dadosAgrupados[p.item_id] = [];
@@ -52,21 +48,32 @@ app.get('/scanner', async (req, res) => {
             const precos = dadosAgrupados[itemId];
             precos.forEach(origem => {
                 precos.forEach(destino => {
-                    if (origem.city === destino.city || origem.sell_price_min <= 0 || destino.sell_price_min <= 0) return;
+                    if (origem.city === destino.city) return;
                     
-                    // Filtro Anti-Troll (Evita bolsas de 8 milhões)
-                    if (destino.sell_price_min > (origem.sell_price_min * 2.5)) return;
+                    const pCompra = origem.sell_price_min;
+                    const pVenda = destino.sell_price_min;
+                    const pOrdemCompra = destino.buy_price_max; // Preço que as pessoas estão oferecendo para comprar
 
-                    const lucro = (destino.sell_price_min * (1 - TAXA)) - origem.sell_price_min;
-                    const roi = (lucro / origem.sell_price_min) * 100;
+                    // --- FILTROS ANTI-FAKE ---
+                    if (pCompra <= 100 || pVenda <= 100) return;
+                    
+                    // 1. Se o preço de venda é 2x maior que o de compra, é suspeito para esses itens
+                    if (pVenda > (pCompra * 2)) return;
 
-                    if (lucro > 2000 && roi < 80) {
+                    // 2. Se não existe Ordem de Compra ou ela é muito baixa, o item não tem liquidez (é ghost)
+                    if (pOrdemCompra <= 0 || pOrdemCompra < (pCompra * 0.5)) return;
+
+                    const lucro = (pVenda * (1 - TAXA)) - pCompra;
+                    const roi = (lucro / pCompra) * 100;
+
+                    // 3. ROI entre 3% e 60% (Onde mora o lucro real de trade)
+                    if (lucro > 1500 && roi > 3 && roi < 60) {
                         oportunidades.push({
                             n: TRADUCOES[itemId] || itemId,
                             o: origem.city,
                             d: destino.city,
-                            c: origem.sell_price_min,
-                            v: Math.round(destino.sell_price_min * (1 - TAXA)),
+                            c: pCompra,
+                            v: Math.round(pVenda * (1 - TAXA)),
                             l: Math.round(lucro),
                             r: roi.toFixed(1),
                             t: destino.sell_price_min_date
@@ -76,11 +83,11 @@ app.get('/scanner', async (req, res) => {
             });
         }
 
-        const final = oportunidades.sort((a, b) => b.l - a.l).slice(0, 100);
+        const final = oportunidades.sort((a, b) => b.l - a.l).slice(0, 80);
         cache.data = final;
         cache.lastUpdate = agora;
         res.json(final);
-    } catch (e) { res.status(500).send("Erro"); }
+    } catch (e) { res.status(500).json([]); }
 });
 
-app.listen(PORT, () => console.log("Servidor Leve Rodando"));
+app.listen(PORT, () => console.log("Motor Protegido Rodando"));
