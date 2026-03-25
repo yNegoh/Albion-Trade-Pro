@@ -4,65 +4,76 @@
     <meta charset="UTF-8">
     <title>Albion Trader Pro</title>
     <style>
-        :root { --bg: #0f172a; --card: #1e293b; --accent: #22c55e; }
+        :root { --bg: #0f172a; --card: #1e293b; --accent: #22c55e; --dim: #94a3b8; }
         body { background: var(--bg); color: white; font-family: sans-serif; margin: 0; display: flex; height: 100vh; overflow: hidden; }
         .sidebar { width: 240px; background: var(--card); padding: 20px; border-right: 1px solid #334155; }
-        .nav-item { display: block; width: 100%; padding: 12px; margin-bottom: 5px; border-radius: 8px; background: transparent; border: none; color: #94a3b8; text-align: left; cursor: pointer; font-weight: bold; }
+        .nav-item { display: block; width: 100%; padding: 12px; margin-bottom: 5px; border-radius: 8px; background: transparent; border: none; color: var(--dim); text-align: left; cursor: pointer; font-weight: bold; }
         .nav-item.active { background: #22c55e; color: white; }
         .main { flex: 1; padding: 25px; overflow-y: auto; }
-        .filter-bar { display: flex; gap: 10px; margin-bottom: 20px; background: var(--card); padding: 15px; border-radius: 10px; flex-wrap: wrap; }
-        input, select { background: #0f172a; color: white; border: 1px solid #334155; padding: 10px; border-radius: 5px; }
+        .page { display: none; }
+        .page.active { display: block; }
+        .filter-bar { display: flex; gap: 10px; margin-bottom: 20px; background: var(--card); padding: 15px; border-radius: 10px; align-items: center; }
+        input { background: #0f172a; color: white; border: 1px solid #334155; padding: 10px; border-radius: 5px; width: 300px; }
         table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 10px; overflow: hidden; }
-        th, td { padding: 15px; text-align: left; border-bottom: 1px solid #334155; }
+        th, td { padding: 15px; text-align: left; border-bottom: 1px solid #334155; font-size: 0.9rem; }
         th { color: #22c55e; font-size: 0.75rem; text-transform: uppercase; }
         .lucro { color: #22c55e; font-weight: bold; }
-        .qualidade { font-size: 0.75rem; padding: 2px 6px; border-radius: 4px; background: #334155; color: #ddd; }
+        .badge-q { padding: 2px 8px; border-radius: 4px; background: #334155; font-size: 0.8rem; color: #fff; }
     </style>
 </head>
 <body>
+
     <div class="sidebar">
         <h2 style="color:var(--accent)">Albion Trader</h2>
-        <button class="nav-item active">📊 Scanner Global</button>
-        <button class="nav-item">💎 Top Lucros</button>
-        <button class="nav-item">⚙️ Configurações</button>
+        <button class="nav-item active" onclick="nav('scanner', this)">📊 Scanner Global</button>
+        <button class="nav-item" onclick="nav('top', this)">💎 Top Lucros</button>
+        <button class="nav-item" onclick="nav('config', this)">⚙️ Configurações</button>
     </div>
+
     <div class="main">
-        <div class="filter-bar">
-            <input type="text" id="fNome" placeholder="Buscar item..." oninput="render()">
-            <select id="fQualidade" onchange="render()">
-                <option value="">Qualquer Qualidade</option>
-                <option value="1" selected>Normal (Q1)</option>
-                <option value="2">Bom (Q2)</option>
-                <option value="3">Notável (Q3)</option>
-                <option value="4">Excelente (Q4)</option>
-            </select>
-            <button onclick="buscar()" style="background:var(--accent); border:none; color:white; padding:10px 15px; border-radius:5px; cursor:pointer; font-weight:bold">🔄 ATUALIZAR</button>
+        <div id="p-scanner" class="page active">
+            <div class="filter-bar">
+                <input type="text" id="fNome" placeholder="Buscar por nome ou tier (ex: T5.1)..." oninput="render()">
+                <button onclick="buscar()" style="background:var(--accent); color:white; border:none; padding:10px 20px; border-radius:5px; cursor:pointer; font-weight:bold">🔄 ATUALIZAR</button>
+            </div>
+            <div id="msg" style="margin-bottom:15px; color:var(--accent); font-weight:bold">Aguardando comando...</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Item</th>
+                        <th>Rota</th>
+                        <th>Compra</th>
+                        <th>Venda Líq</th>
+                        <th>Lucro</th>
+                        <th>ROI</th>
+                        <th>Qualidade</th>
+                        <th>Visto</th>
+                    </tr>
+                </thead>
+                <tbody id="corpo"></tbody>
+            </table>
         </div>
-        <div id="msg" style="margin-bottom:10px; color:var(--accent); font-weight:bold">Aguardando...</div>
-        <table>
-            <thead>
-                <tr>
-                    <th>Item / Qualidade</th>
-                    <th>Rota</th>
-                    <th>Compra</th>
-                    <th>Venda Líq</th>
-                    <th>Lucro</th>
-                    <th>ROI</th>
-                    <th>Visto</th>
-                </tr>
-            </thead>
-            <tbody id="corpo"></tbody>
-        </table>
+
+        <div id="p-top" class="page"><h2>💎 Melhores do Momento</h2><div id="top-list"></div></div>
+        <div id="p-config" class="page"><h2>⚙️ Configurações</h2><p>Taxa fixada em 6.5% (Premium)</p></div>
     </div>
 
     <script>
         const API = "https://albion-trade-pro-ogaq.onrender.com/scanner";
-        const QUALIDADES = { 1: "Normal", 2: "Bom", 3: "Notável", 4: "Excelente" };
+        const Q_NOMES = { 1: "Normal", 2: "Bom", 3: "Notável", 4: "Excelente" };
         let dados = [];
+
+        function nav(id, btn) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+            document.getElementById('p-' + id).classList.add('active');
+            btn.classList.add('active');
+            if(id === 'top') renderTop();
+        }
 
         async function buscar() {
             const m = document.getElementById('msg');
-            m.innerText = "⏳ Buscando dados (15s)...";
+            m.innerText = "⏳ Sincronizando com Albion...";
             try {
                 const r = await fetch(API);
                 dados = await r.json();
@@ -71,36 +82,33 @@
             } catch (e) { m.innerText = "❌ Erro de conexão."; }
         }
 
-        function formatTime(dateStr) {
-            const diff = Math.floor((Date.now() - new Date(dateStr)) / 60000);
-            return (diff < 0 ? 0 : diff) + "m";
-        }
-
         function render() {
             const busca = document.getElementById('fNome').value.toLowerCase();
-            const qual = document.getElementById('fQualidade').value;
-            const t = document.getElementById('corpo');
+            const corpo = document.getElementById('corpo');
             let html = "";
 
-            const filtrados = dados.filter(d => {
-                const bateNome = d.n.toLowerCase().includes(busca);
-                const bateQual = qual === "" || d.q == qual;
-                return bateNome && bateQual;
-            });
-
-            filtrados.slice(0, 50).forEach(d => {
+            dados.filter(d => d.n.toLowerCase().includes(busca)).forEach(d => {
+                const tempo = Math.floor((Date.now() - new Date(d.t)) / 60000);
                 html += `<tr>
-                    <td><b>${d.n}</b> <br> <span class="qualidade">${QUALIDADES[d.q]}</span></td>
+                    <td><b>${d.n}</b></td>
                     <td>${d.o} ➔ ${d.d}</td>
                     <td>${d.c.toLocaleString()}</td>
                     <td>${d.v.toLocaleString()}</td>
                     <td class="lucro">+ ${d.l.toLocaleString()}</td>
                     <td>${d.r}%</td>
-                    <td style="color:#94a3b8">${formatTime(d.t)}</td>
+                    <td><span class="badge-q">${Q_NOMES[d.q]}</span></td>
+                    <td style="color:var(--dim)">${tempo < 0 ? 'Agora' : (tempo < 60 ? tempo+'m' : Math.floor(tempo/60)+'h')}</td>
                 </tr>`;
             });
-            t.innerHTML = html;
+            corpo.innerHTML = html;
         }
+
+        function renderTop() {
+            const list = document.getElementById('top-list');
+            const tops = [...dados].sort((a,b) => b.r - a.r).slice(0, 5);
+            list.innerHTML = tops.length ? tops.map(d => `<div style="background:var(--card); padding:15px; margin-bottom:10px; border-radius:8px; border-left:5px solid var(--accent)"><b>${d.n} (${Q_NOMES[d.q]})</b>: ROI de ${d.r}%</div>`).join('') : "Sem dados.";
+        }
+
         window.onload = buscar;
     </script>
 </body>
