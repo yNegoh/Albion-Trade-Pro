@@ -18,7 +18,7 @@ let IDS_EXPANDIDOS = [];
 let TRADUCOES = {};
 
 baseItems.forEach(base => {
-    [4, 5, 6].forEach(t => {
+    [4, 5, 6, 7].forEach(t => {
         ["", "@1", "@2", "@3"].forEach((v, i) => {
             const id = `T${t}_${base.id}${v}`;
             IDS_EXPANDIDOS.push(id);
@@ -32,19 +32,18 @@ app.get('/scanner', async (req, res) => {
         const agora = Date.now();
         if (cache.data && (agora - cache.lastUpdate < 120000)) return res.json(cache.data);
 
-        // Busca bloco de 150 itens para garantir velocidade
-        const chunks = IDS_EXPANDIDOS.slice(0, 150).join(',');
+        const chunks = IDS_EXPANDIDOS.slice(0, 200).join(',');
         const url = `https://west.albion-online-data.com/api/v2/stats/prices/${chunks}?locations=Caerleon,Martlock,Bridgewatch,Lymhurst,FortSterling,Thetford`;
         
         const response = await axios.get(url, { timeout: 12000 });
         
         let oportunidades = [];
-        response.data.forEach(p => {
-            // Ignora se for Obra-prima (5) ou se não houver preço
+        const dataAPI = response.data;
+
+        dataAPI.forEach(p => {
             if (p.quality === 5 || p.sell_price_min <= 0) return;
 
-            // Busca o preço de venda em outras cidades para o MESMO item e MESMA qualidade
-            const destinos = response.data.filter(d => 
+            const destinos = dataAPI.filter(d => 
                 d.item_id === p.item_id && 
                 d.city !== p.city && 
                 d.quality === p.quality &&
@@ -52,12 +51,12 @@ app.get('/scanner', async (req, res) => {
             );
 
             destinos.forEach(venda => {
-                if (venda.sell_price_min > (p.sell_price_min * 2.5)) return; // Anti-Troll
+                if (venda.sell_price_min > (p.sell_price_min * 2.3)) return; 
 
                 const lucro = (venda.sell_price_min * (1 - TAXA)) - p.sell_price_min;
                 const roi = (lucro / p.sell_price_min) * 100;
 
-                if (lucro > 1500 && roi < 60) {
+                if (lucro > 2000 && roi < 60) {
                     oportunidades.push({
                         n: TRADUCOES[p.item_id] || p.item_id,
                         o: p.city,
@@ -66,7 +65,7 @@ app.get('/scanner', async (req, res) => {
                         v: Math.round(venda.sell_price_min * (1 - TAXA)),
                         l: Math.round(lucro),
                         r: roi.toFixed(1),
-                        q: p.quality, // Qualidade 1 a 4
+                        q: p.quality,
                         t: venda.sell_price_min_date
                     });
                 }
@@ -80,4 +79,4 @@ app.get('/scanner', async (req, res) => {
     } catch (e) { res.status(500).json([]); }
 });
 
-app.listen(PORT, () => console.log("Motor Restaurado"));
+app.listen(PORT, () => console.log("Servidor Rodando"));
