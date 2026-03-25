@@ -2,22 +2,21 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Albion Trader Pro</title>
+    <title>Albion Trader</title>
     <style>
-        :root { --bg: #0f172a; --card: #1e293b; --accent: #22c55e; --dim: #94a3b8; }
+        :root { --bg: #0f172a; --card: #1e293b; --accent: #22c55e; }
         body { background: var(--bg); color: white; font-family: sans-serif; margin: 0; display: flex; height: 100vh; overflow: hidden; }
         .sidebar { width: 240px; background: var(--card); padding: 20px; border-right: 1px solid #334155; }
-        .nav-item { display: block; width: 100%; padding: 12px; margin-bottom: 8px; border-radius: 8px; background: transparent; border: none; color: var(--dim); text-align: left; cursor: pointer; font-weight: bold; }
-        .nav-item.active { background: var(--accent); color: white; }
-        .main { flex: 1; display: flex; flex-direction: column; overflow-y: auto; }
-        .page { display: none; padding: 25px; }
+        .nav-item { display: block; width: 100%; padding: 12px; margin-bottom: 5px; border-radius: 8px; background: transparent; border: none; color: #94a3b8; text-align: left; cursor: pointer; font-weight: bold; }
+        .nav-item.active { background: #22c55e; color: white; }
+        .main { flex: 1; padding: 20px; overflow-y: auto; }
+        .page { display: none; }
         .page.active { display: block; }
-        .filter-bar { display: flex; gap: 10px; margin-bottom: 20px; background: var(--card); padding: 15px; border-radius: 10px; }
-        input, select { background: #0f172a; color: white; border: 1px solid #334155; padding: 10px; border-radius: 5px; }
-        table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 10px; }
-        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #334155; }
-        th { color: var(--accent); font-size: 0.75rem; text-transform: uppercase; }
-        .lucro-ok { color: var(--accent); font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 10px; overflow: hidden; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #334155; font-size: 0.9rem; }
+        th { color: var(--accent); text-transform: uppercase; font-size: 0.7rem; }
+        .lucro { color: var(--accent); font-weight: bold; }
+        input { background: #0f172a; color: white; border: 1px solid #334155; padding: 10px; border-radius: 5px; width: 250px; margin-bottom: 15px; }
     </style>
 </head>
 <body>
@@ -30,13 +29,10 @@
     </div>
 
     <div class="main">
-        <!-- SCANNER -->
         <div id="p-scanner" class="page active">
-            <div class="filter-bar">
-                <input type="text" id="fNome" placeholder="Filtrar item..." oninput="render()">
-                <button onclick="buscar()" style="background:var(--accent); color:white; border:none; padding:10px; border-radius:5px; cursor:pointer; font-weight:bold">🔄 ATUALIZAR</button>
-            </div>
-            <div id="status-msg" style="margin-bottom:10px; color:var(--accent)">Aguardando...</div>
+            <input type="text" id="fNome" placeholder="Filtrar item..." oninput="render()">
+            <button onclick="buscar()" style="padding:10px; background:var(--accent); border:none; color:white; border-radius:5px; cursor:pointer; font-weight:bold">🔄 ATUALIZAR</button>
+            <div id="msg" style="margin: 10px 0; color: var(--accent)">Aguardando...</div>
             <table>
                 <thead>
                     <tr><th>Item</th><th>Rota</th><th>Compra</th><th>Venda Líq</th><th>Lucro</th><th>ROI</th><th>Visto</th></tr>
@@ -45,22 +41,13 @@
             </table>
         </div>
 
-        <!-- TOP LUCROS -->
-        <div id="p-top" class="page">
-            <h2>💎 Itens de Elite</h2>
-            <div id="corpo-top">Use o Scanner primeiro para ver os destaques.</div>
-        </div>
-
-        <!-- CONFIG -->
-        <div id="p-config" class="page">
-            <h2>⚙️ Configurações</h2>
-            <p>Taxa atual: 6.5% (Premium)</p>
-        </div>
+        <div id="p-top" class="page"><h2>💎 Maiores Oportunidades</h2><div id="top-list"></div></div>
+        <div id="p-config" class="page"><h2>⚙️ Configurações</h2><p>Taxa: 6.5% (Premium)</p></div>
     </div>
 
     <script>
         const API = "https://albion-trade-pro-ogaq.onrender.com/scanner";
-        let dadosRaw = [];
+        let dados = [];
 
         function nav(id, btn) {
             document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -70,43 +57,36 @@
         }
 
         async function buscar() {
-            const st = document.getElementById('status-msg');
-            st.innerText = "⏳ Buscando no servidor... pode levar 20s.";
+            const m = document.getElementById('msg');
+            m.innerText = "⏳ Buscando dados...";
             try {
                 const r = await fetch(API);
-                dadosRaw = await r.json();
-                st.innerText = `✅ ${dadosRaw.length} oportunidades encontradas!`;
+                dados = await r.json();
+                m.innerText = `✅ ${dados.length} itens encontrados!`;
                 render();
-            } catch (e) {
-                st.innerText = "❌ Erro ao conectar. Tente novamente.";
-            }
+            } catch (e) { m.innerText = "❌ Erro ao carregar."; }
         }
 
         function render() {
             const busca = document.getElementById('fNome').value.toLowerCase();
-            const corpo = document.getElementById('corpo');
-            corpo.innerHTML = "";
+            const t = document.getElementById('corpo');
+            let html = ""; // Usando string completa (muito mais rápido)
 
-            const filtrados = dadosRaw.filter(d => d.nome.toLowerCase().includes(busca));
-            
-            filtrados.forEach(d => {
-                corpo.innerHTML += `
-                    <tr>
-                        <td><strong>${d.nome}</strong></td>
-                        <td>${d.origem} ➔ ${d.destino}</td>
-                        <td>${d.compra.toLocaleString()}</td>
-                        <td>${d.venda.toLocaleString()}</td>
-                        <td class="lucro-ok">+ ${d.lucro.toLocaleString()}</td>
-                        <td>${d.roi}</td>
-                        <td style="color:var(--dim); font-size:0.8rem">${new Date(d.atualizado).toLocaleTimeString()}</td>
-                    </tr>
-                `;
+            const filtrados = dados.filter(d => d.n.toLowerCase().includes(busca));
+
+            filtrados.slice(0, 50).forEach(d => {
+                const tempo = Math.floor((Date.now() - new Date(d.t)) / 60000);
+                html += `<tr>
+                    <td><b>${d.n}</b></td>
+                    <td>${d.o} ➔ ${d.d}</td>
+                    <td>${d.c.toLocaleString()}</td>
+                    <td>${d.v.toLocaleString()}</td>
+                    <td class="lucro">+ ${d.l.toLocaleString()}</td>
+                    <td>${d.r}%</td>
+                    <td style="color:#94a3b8">${tempo < 60 ? tempo+'m' : Math.floor(tempo/60)+'h'}</td>
+                </tr>`;
             });
-
-            // Preenche aba Top
-            const topArea = document.getElementById('corpo-top');
-            const tops = filtrados.filter(f => parseFloat(f.roi) > 20).slice(0,5);
-            topArea.innerHTML = tops.map(t => `<p>🔥 <b>${t.nome}</b>: ROI de ${t.roi}</p>`).join('');
+            t.innerHTML = html;
         }
 
         window.onload = buscar;
