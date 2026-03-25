@@ -2,7 +2,7 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Albion Trader</title>
+    <title>Albion Trader Pro</title>
     <style>
         :root { --bg: #0f172a; --card: #1e293b; --accent: #22c55e; }
         body { background: var(--bg); color: white; font-family: sans-serif; margin: 0; display: flex; height: 100vh; overflow: hidden; }
@@ -14,9 +14,9 @@
         .page.active { display: block; }
         table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 10px; overflow: hidden; }
         th, td { padding: 12px; text-align: left; border-bottom: 1px solid #334155; font-size: 0.9rem; }
-        th { color: var(--accent); text-transform: uppercase; font-size: 0.7rem; }
-        .lucro { color: var(--accent); font-weight: bold; }
-        input { background: #0f172a; color: white; border: 1px solid #334155; padding: 10px; border-radius: 5px; width: 250px; margin-bottom: 15px; }
+        th { color: #22c55e; text-transform: uppercase; font-size: 0.7rem; }
+        .lucro { color: #22c55e; font-weight: bold; }
+        input { background: #0f172a; color: white; border: 1px solid #334155; padding: 10px; border-radius: 5px; width: 200px; }
     </style>
 </head>
 <body>
@@ -29,10 +29,13 @@
     </div>
 
     <div class="main">
+        <!-- SCANNER -->
         <div id="p-scanner" class="page active">
-            <input type="text" id="fNome" placeholder="Filtrar item..." oninput="render()">
-            <button onclick="buscar()" style="padding:10px; background:var(--accent); border:none; color:white; border-radius:5px; cursor:pointer; font-weight:bold">🔄 ATUALIZAR</button>
-            <div id="msg" style="margin: 10px 0; color: var(--accent)">Aguardando...</div>
+            <div style="margin-bottom: 15px; display: flex; gap: 10px;">
+                <input type="text" id="fNome" placeholder="Filtrar item..." oninput="render()">
+                <button onclick="buscar()" style="background:var(--accent); border:none; color:white; padding:10px 15px; border-radius:5px; cursor:pointer; font-weight:bold">🔄 ATUALIZAR</button>
+            </div>
+            <div id="msg" style="margin-bottom:10px; color:var(--accent); font-weight:bold">Aguardando dados...</div>
             <table>
                 <thead>
                     <tr><th>Item</th><th>Rota</th><th>Compra</th><th>Venda Líq</th><th>Lucro</th><th>ROI</th><th>Visto</th></tr>
@@ -41,8 +44,21 @@
             </table>
         </div>
 
-        <div id="p-top" class="page"><h2>💎 Maiores Oportunidades</h2><div id="top-list"></div></div>
-        <div id="p-config" class="page"><h2>⚙️ Configurações</h2><p>Taxa: 6.5% (Premium)</p></div>
+        <!-- TOP LUCROS -->
+        <div id="p-top" class="page">
+            <h2>💎 Itens de Alta Margem</h2>
+            <div id="top-list">Busque os dados no Scanner primeiro.</div>
+        </div>
+
+        <!-- CONFIG -->
+        <div id="p-config" class="page">
+            <h2>⚙️ Configurações</h2>
+            <div style="background:var(--card); padding:20px; border-radius:10px">
+                <p>Taxa de Mercado: <b>6.5%</b></p>
+                <p>Status Premium: <b style="color:var(--accent)">Ativado</b></p>
+                <p>Filtro Anti-Troll: <b style="color:var(--accent)">Ligado (Max 60% ROI)</b></p>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -54,28 +70,35 @@
             document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
             document.getElementById('p-' + id).classList.add('active');
             btn.classList.add('active');
+            if(id === 'top') renderTop();
         }
 
         async function buscar() {
             const m = document.getElementById('msg');
-            m.innerText = "⏳ Buscando dados...";
+            m.innerText = "⏳ Vasculhando mercados (15s)...";
             try {
                 const r = await fetch(API);
                 dados = await r.json();
-                m.innerText = `✅ ${dados.length} itens encontrados!`;
+                m.innerText = `✅ ${dados.length} itens reais encontrados!`;
                 render();
-            } catch (e) { m.innerText = "❌ Erro ao carregar."; }
+            } catch (e) { m.innerText = "❌ Erro de conexão."; }
+        }
+
+        function formatTime(dateStr) {
+            const agora = new Date();
+            const dataPreco = new Date(dateStr);
+            let diff = Math.floor((agora - dataPreco) / 60000);
+            
+            if (diff < 0) diff = 0; // Corrige fuso horário futuro
+            if (diff < 60) return diff + "m";
+            return Math.floor(diff/60) + "h";
         }
 
         function render() {
             const busca = document.getElementById('fNome').value.toLowerCase();
             const t = document.getElementById('corpo');
-            let html = ""; // Usando string completa (muito mais rápido)
-
-            const filtrados = dados.filter(d => d.n.toLowerCase().includes(busca));
-
-            filtrados.slice(0, 50).forEach(d => {
-                const tempo = Math.floor((Date.now() - new Date(d.t)) / 60000);
+            let html = "";
+            dados.filter(d => d.n.toLowerCase().includes(busca)).forEach(d => {
                 html += `<tr>
                     <td><b>${d.n}</b></td>
                     <td>${d.o} ➔ ${d.d}</td>
@@ -83,10 +106,21 @@
                     <td>${d.v.toLocaleString()}</td>
                     <td class="lucro">+ ${d.l.toLocaleString()}</td>
                     <td>${d.r}%</td>
-                    <td style="color:#94a3b8">${tempo < 60 ? tempo+'m' : Math.floor(tempo/60)+'h'}</td>
+                    <td style="color:#94a3b8">${formatTime(d.t)}</td>
                 </tr>`;
             });
             t.innerHTML = html;
+        }
+
+        function renderTop() {
+            const list = document.getElementById('top-list');
+            if (dados.length === 0) return;
+            const tops = [...dados].sort((a,b) => b.r - a.r).slice(0, 5);
+            list.innerHTML = tops.map(d => `
+                <div style="background:var(--card); padding:15px; margin-bottom:10px; border-radius:8px; border-left:5px solid var(--accent)">
+                    <b>${d.n}</b> - ROI de <span style="color:var(--accent)">${d.r}%</span> na rota ${d.o} ➔ ${d.d}
+                </div>
+            `).join('');
         }
 
         window.onload = buscar;
