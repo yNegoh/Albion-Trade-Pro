@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-    <meta charset="UTF-8"><title>Albion Trader Pro v1.2</title>
+    <meta charset="UTF-8"><title>Albion Trader Pro v1.3</title>
     <style>
-        :root { --bg: #0f172a; --card: #1e293b; --accent: #22c55e; --gold: #fbbf24; --border: #334155; --blue: #38bdf8; }
+        :root { --bg: #0f172a; --card: #1e293b; --accent: #22c55e; --gold: #fbbf24; --border: #334155; --price: #94a3b8; }
         * { box-sizing: border-box; }
         html, body { height: 100%; margin: 0; background: var(--bg); color: white; font-family: sans-serif; overflow: hidden; }
         .app-container { display: flex; height: 100vh; width: 100vw; }
 
-        /* Sidebar Reorganizada */
+        /* Sidebar */
         .sidebar { width: 260px; background: var(--card); padding: 20px; border-right: 1px solid var(--border); flex-shrink: 0; }
         .nav-item { display: block; width: 100%; padding: 12px; margin-bottom: 8px; border-radius: 8px; background: transparent; border: none; color: #94a3b8; text-align: left; cursor: pointer; font-weight: bold; transition: 0.2s; }
         .nav-item:hover { background: #334155; }
@@ -16,12 +16,12 @@
         .nav-item.black-btn { border: 1px solid var(--gold); color: var(--gold); margin-top: 5px; }
         .nav-item.black-btn.active { background: var(--gold); color: #000; }
 
-        /* Main Content */
+        /* Main */
         .main { flex-grow: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; }
-        .top-tools { display: flex; gap: 15px; background: var(--card); padding: 15px; border-radius: 12px; margin-bottom: 15px; align-items: center; border: 1px solid var(--border); flex-wrap: wrap; }
+        .top-tools { display: flex; gap: 15px; background: var(--card); padding: 15px; border-radius: 12px; margin-bottom: 15px; align-items: center; border: 1px solid var(--border); }
         .tool-group { display: flex; align-items: center; gap: 8px; background: #0f172a; padding: 6px 12px; border-radius: 8px; border: 1px solid var(--border); }
         
-        /* Table Styles */
+        /* Tabela */
         .table-container { background: var(--card); border-radius: 10px; border: 1px solid var(--border); width: 100%; }
         table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
         th, td { padding: 12px; text-align: left; border-bottom: 1px solid var(--border); }
@@ -29,23 +29,22 @@
         
         .header-filter { display: block; margin-top: 5px; width: 100%; background: #0f172a; color: white; border: 1px solid var(--border); border-radius: 4px; padding: 2px; font-size: 0.7rem; outline: none; }
 
-        /* Badges e Cores */
         .tier-badge { padding: 3px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; background: #475569; margin-right: 5px; }
         .t8 { background: #5b21b6; } .t7 { background: #b91c1c; } .t6 { background: #ea580c; }
-        .lucro { color: var(--accent); font-weight: bold; }
-        .silver-kg { color: var(--blue); font-weight: bold; font-size: 0.8rem; }
         
-        /* Recipe Detail */
-        .recipe-box { font-size: 0.7rem; color: #94a3b8; line-height: 1.2; border-left: 2px solid var(--accent); padding-left: 8px; margin-top: 4px; }
-        .recipe-val { color: white; font-weight: bold; }
+        .val-compra { color: #f87171; font-weight: bold; } /* Vermelho suave para custo */
+        .val-venda { color: #60a5fa; font-weight: bold; }  /* Azul suave para venda */
+        .lucro { color: var(--accent); font-weight: bold; font-size: 0.95rem; }
+        
+        .recipe-box { font-size: 0.7rem; color: #94a3b8; border-left: 2px solid var(--accent); padding-left: 8px; margin-top: 4px; }
     </style>
 </head>
 <body>
     <div class="app-container">
         <div class="sidebar">
-            <h2 style="color:var(--accent); margin-bottom: 25px;">Trader Pro <small style="display:block; font-size: 0.6rem; color:gray">v1.2 Eficiência</small></h2>
+            <h2 style="color:var(--accent); margin-bottom: 25px;">Trader Pro <small style="display:block; font-size: 0.6rem; color:gray">v1.3 Clareza</small></h2>
             
-            <!-- Ordem Alterada Conforme Solicitado -->
+            <!-- Ordem Solicitada -->
             <button class="nav-item active" onclick="mudarCat('flip', this)">⚔️ Flip de Mercado</button>
             <button class="nav-item black-btn" onclick="mudarCat('black', this)">🏴 Black Market</button>
             <button class="nav-item" onclick="mudarCat('craft', this)">🛠️ Craft Geral</button>
@@ -57,7 +56,7 @@
                 <div class="tool-group"><label style="font-size:0.65rem">PREMIUM</label><input type="checkbox" id="checkPre" checked onchange="render()"></div>
                 <div class="tool-group">
                     <label style="font-size:0.65rem">RETORNO (RRR)</label>
-                    <select id="selRRR" onchange="render()" style="background:none; color:white; font-size:0.8rem; font-weight:bold;">
+                    <select id="selRRR" onchange="render()" style="background:none; color:white; font-weight:bold;">
                         <option value="0">0%</option>
                         <option value="0.152" selected>15.2% (Cidade)</option>
                         <option value="0.437">43.7% (Foco)</option>
@@ -67,7 +66,7 @@
                 <button onclick="mudarCat(ultimaCat)" style="background:var(--accent); color:white; border:none; padding:10px 15px; border-radius:8px; cursor:pointer; font-weight:bold; margin-left:auto;">🔄 ATUALIZAR</button>
             </div>
 
-            <div id="status-msg" style="margin-bottom:10px; color: var(--accent); font-size:0.8rem;">Aguardando dados...</div>
+            <div id="status-msg" style="margin-bottom:10px; color: var(--accent); font-size:0.8rem; font-weight:bold;">Aguardando...</div>
 
             <div class="table-container">
                 <table>
@@ -76,19 +75,21 @@
                             <th style="width: 220px;">Item / Qualidade</th>
                             <th>Origem / Receita
                                 <select id="fOrigem" class="header-filter" onchange="render()">
-                                    <option value="">Todas</option><option value="Martlock">Martlock</option><option value="Lymhurst">Lymhurst</option><option value="Bridgewatch">Bridgewatch</option><option value="FortSterling">Fort Sterling</option><option value="Thetford">Thetford</option><option value="Caerleon">Caerleon</option>
+                                    <option value="">Todas Cidades</option>
+                                    <option value="Martlock">Martlock</option><option value="Lymhurst">Lymhurst</option><option value="Bridgewatch">Bridgewatch</option><option value="FortSterling">Fort Sterling</option><option value="Thetford">Thetford</option><option value="Caerleon">Caerleon</option>
                                 </select>
                             </th>
                             <th>Destino
                                 <select id="fDestino" class="header-filter" onchange="render()">
-                                    <option value="">Todos</option><option value="Black Market">Black Market</option><option value="Caerleon">Caerleon</option><option value="Martlock">Martlock</option><option value="Lymhurst">Lymhurst</option><option value="Bridgewatch">Bridgewatch</option><option value="FortSterling">Fort Sterling</option><option value="Thetford">Thetford</option>
+                                    <option value="">Todos Destinos</option>
+                                    <option value="Black Market">Black Market</option><option value="Caerleon">Caerleon</option><option value="Martlock">Martlock</option><option value="Lymhurst">Lymhurst</option><option value="Bridgewatch">Bridgewatch</option><option value="FortSterling">Fort Sterling</option><option value="Thetford">Thetford</option>
                                 </select>
                             </th>
-                            <th onclick="ordenar('c_final')" style="cursor:pointer">Custo</th>
-                            <th onclick="ordenar('lucro')" style="cursor:pointer">Lucro Abs.</th>
-                            <th onclick="ordenar('roi')" style="cursor:pointer; color:var(--gold)">ROI % ↓</th>
-                            <th onclick="ordenar('skg')" style="cursor:pointer; color:var(--blue)">Silver / Kg</th>
-                            <th>Visto</th>
+                            <th onclick="ordenar('c_final')">Preço Compra</th>
+                            <th onclick="ordenar('v_liq')">Venda Líquida</th>
+                            <th onclick="ordenar('lucro')">Lucro Silver</th>
+                            <th onclick="ordenar('roi')" style="color:var(--gold)">ROI % ↓</th>
+                            <th>Idade</th>
                         </tr>
                     </thead>
                     <tbody id="corpo"></tbody>
@@ -110,13 +111,13 @@
                 document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
             }
-            document.getElementById('status-msg').innerText = "⏳ Consultando API Albion Data Project...";
+            document.getElementById('status-msg').innerText = "⏳ Sincronizando dados reais...";
             try {
                 const r = await fetch(`${API}?cat=${cat}`);
                 dados = await r.json();
-                document.getElementById('status-msg').innerText = `✅ ${dados.length} rotas encontradas para ${cat.toUpperCase()}`;
+                document.getElementById('status-msg').innerText = `✅ ${dados.length} itens analisados.`;
                 render();
-            } catch (e) { document.getElementById('status-msg').innerText = "❌ Erro ao buscar dados."; }
+            } catch (e) { document.getElementById('status-msg').innerText = "❌ Servidor offline."; }
         }
 
         function ordenar(campo) {
@@ -142,32 +143,25 @@
                 const v_liq = Math.round(d.v_bruto * (1 - taxaMkt));
                 const lucro = v_liq - c_final;
                 const roi = parseFloat(((lucro / c_final) * 100).toFixed(1));
-                
-                // Cálculo de Silver por KG (Eficiência de Transporte)
-                // Usamos d.w se existir, caso contrário 1.0kg como padrão
-                const pesoItem = d.w || 1.0;
-                const skg = Math.round(lucro / pesoItem);
-                
                 const diff = Math.floor((Date.now() - new Date(d.t)) / 60000);
                 
-                // Receita (PDF Style)
+                // Cálculo para detalhes da receita
                 let precoUnitario = 0;
                 if (ultimaCat === 'craft' || ultimaCat === 'refino') {
                     const match = d.details.match(/\d+/);
                     const qtd = match ? parseInt(match[0]) : 1;
                     precoUnitario = Math.round(d.c_bruto / qtd);
                 }
-
-                return { ...d, c_final, v_liq, lucro, roi, skg, diff, precoUnitario, pesoItem };
+                return { ...d, c_final, v_liq, lucro, roi, diff, precoUnitario };
             });
 
-            // Filtros
-            if (ultimaCat === 'black') processados = processados.filter(p => (p.d.includes('Black') || p.d === 'Caerleon') && p.roi > 5);
+            // Filtros de interface
+            if (ultimaCat === 'black') processados = processados.filter(p => (p.d.includes('Black') || p.d === 'Caerleon') && p.roi > 3);
             if (fOrigem) processados = processados.filter(p => p.o === fOrigem);
             if (fDestino) processados = processados.filter(p => p.d === fDestino);
             if (query) processados = processados.filter(p => p.n.toLowerCase().includes(query));
 
-            // Ordenação Padrão por ROI se não houve clique
+            // Ordenação padrão por ROI % (Maior para menor)
             if (!apenasTabela) processados.sort((a, b) => b.roi - a.roi);
 
             let html = "";
@@ -176,26 +170,24 @@
                 const tClass = d.n.includes("T8") ? "t8" : (d.n.includes("T7") ? "t7" : (d.n.includes("T6") ? "t6" : ""));
                 const tempo = d.diff < 60 ? d.diff + 'm' : Math.floor(d.diff/60) + 'h';
 
-                let receitaHTML = `<span class="city-tag">${d.o}</span>`;
+                let infoOrigem = `<span class="city-tag">${d.o}</span>`;
                 if (d.precoUnitario > 0) {
-                    receitaHTML += `<div class="recipe-box">Receita: ${d.details}<br>Un: <span class="recipe-val">${d.precoUnitario.toLocaleString()} s</span> | ${d.pesoItem}kg</div>`;
-                } else {
-                    receitaHTML += `<div style="font-size:0.7rem; color:gray">Peso: ${d.pesoItem} kg</div>`;
+                    infoOrigem += `<div class="recipe-box">Receita: ${d.details}<br>Valor Un: ${d.precoUnitario.toLocaleString()} s</div>`;
                 }
 
                 html += `<tr>
                     <td>
                         <div style="display:flex;align-items:center;gap:8px">
-                            <img src="https://render.albiononline.com/v1/item/${d.id}.png?quality=${d.q}" width="40" style="border-radius:4px">
+                            <img src="https://render.albiononline.com/v1/item/${d.id}.png?quality=${d.q}" width="40">
                             <div><span class="tier-badge ${tClass}">${d.n}</span><br><small style="color:var(--gold)">${Q_MAP[d.q]}</small></div>
                         </div>
                     </td>
-                    <td>${receitaHTML}</td>
+                    <td>${infoOrigem}</td>
                     <td><b style="${d.d.includes('Black') ? 'color:var(--gold)' : ''}">${d.d}</b></td>
-                    <td>${d.c_final.toLocaleString()}</td>
+                    <td class="val-compra">${d.c_final.toLocaleString()}</td>
+                    <td class="val-venda">${d.v_liq.toLocaleString()}</td>
                     <td class="lucro">+ ${d.lucro.toLocaleString()}</td>
-                    <td style="font-weight:bold; font-size:1.1rem; color:${d.roi > 25 ? 'var(--gold)' : 'var(--accent)'}">${d.roi}%</td>
-                    <td class="silver-kg">${d.skg.toLocaleString()} <small>s/kg</small></td>
+                    <td style="font-weight:bold; font-size:1.1rem; color:${d.roi > 20 ? 'var(--gold)' : 'var(--accent)'}">${d.roi}%</td>
                     <td style="font-size:0.7rem; color:gray">${tempo}</td>
                 </tr>`;
             });
