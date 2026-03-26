@@ -6,76 +6,75 @@ const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 10000;
-app.use(cors());
-app.use(express.json());
+app.use(cors(), express.json());
 
-const TAXA = 0.065;
 const baseItems = JSON.parse(fs.readFileSync(path.join(__dirname, 'items.json'), 'utf8'));
 
 app.get('/scanner', async (req, res) => {
-    const categoria = req.query.cat || 'equip';
+    const categoria = req.query.cat || 'flip';
     try {
         const itensFiltrados = baseItems.filter(i => i.cat === categoria);
-        let idsParaBuscar = [];
-        let traducoes = {};
-
-        // Gerar IDs e incluir matérias-primas se necessário
+        let idsParaBuscar = new Set();
+        
         itensFiltrados.forEach(item => {
-            [4, 5, 6].forEach(t => {
-                const id = `T${t}_${item.id}`;
-                idsParaBuscar.push(id);
-                traducoes[id] = `${item.name} T${t}`;
-                
-                if (item.mat) { // Se tem receita, busca o material também
-                    idsParaBuscar.push(`T${t}_${item.mat}`);
-                    traducoes[`T${t}_${item.mat}`] = `Mat: ${item.mat} T${t}`;
-                }
+            [4, 5, 6, 7].forEach(t => {
+                ["", "@1", "@2", "@3"].forEach(v => {
+                    idsParaBuscar.add(`T${t}_${item.id}${v}`);
+                    if (item.mat) idsParaBuscar.add(`T${t}_${item.mat}${v}`);
+                });
             });
         });
 
-        const url = `https://west.albion-online-data.com/api/v2/stats/prices/${idsParaBuscar.join(',')}?locations=Caerleon,Martlock,Bridgewatch,Lymhurst,FortSterling,Thetford`;
-        const response = await axios.get(url);
-        const data = response.data;
+        const url = `https://west.albion-online-data.com/api/v2/stats/prices/${Array.from(idsParaBuscar).slice(0, 300).join(',')}?locations=Caerleon,Martlock,Bridgewatch,Lymhurst,FortSterling,Thetford`;
+        const response = await axios.get(url, { timeout: 15000 });
+        const dataAPI = response.data;
 
         let resultados = [];
 
         itensFiltrados.forEach(itemBase => {
-            [4, 5, 6].forEach(t => {
-                const idProd = `T${t}_${itemBase.id}`;
-                const precosProd = data.filter(p => p.item_id === idProd && p.sell_price_min > 0);
+            [4, 5, 6, 7].forEach(t => {
+                ["", "@1", "@2", "@3"].forEach((v, iEnch) => {
+                    const idProd = `T${t}_${itemBase.id}${v}`;
+                    const precosProd = dataAPI.filter(p => p.item_id === idProd && p.sell_price_min > 0 && p.quality < 5);
 
-                if (categoria === 'equip') {
-                    // LÓGICA DE FLIP (Compra pronto -> Vende pronto)
-                    precosProd.forEach(origem => {
-                        precosProd.forEach(destino => {
-                            if (origem.city === destino.city) return;
-                            const lucro = (destino.sell_price_min * (1 - TAXA)) - origem.sell_price_min;
-                            const roi = (lucro / origem.sell_price_min) * 100;
-                            if (lucro > 2000 && roi < 60) {
-                                resultados.push({ n: traducoes[idProd], o: origem.city, d: destino.city, c: origem.sell_price_min, v: Math.round(destino.sell_price_min * (1-TAXA)), l: Math.round(lucro), r: roi.toFixed(1), cat: 'Equipamento' });
-                            }
-                        });
-                    });
-                } else {
-                    // LÓGICA DE CRAFT (Compra MATERIA PRIMA -> Vende PRODUTO)
-                    const idMat = `T${t}_${itemBase.mat}`;
-                    const precosMat = data.filter(p => p.item_id === idMat && p.sell_price_min > 0);
+                    precosProd.forEach(venda => {
+                        let infoCompra = { custo: 0, cidade: "", msg: "" };
 
-                    precosMat.forEach(cidadeMat => {
-                        precosProd.forEach(cidadeVenda => {
-                            const lucro = (cidadeVenda.sell_price_min * (1 - TAXA)) - cidadeMat.sell_price_min;
-                            const roi = (lucro / cidadeMat.sell_price_min) * 100;
-                            if (lucro > 1000 && roi < 80) {
-                                resultados.push({ n: traducoes[idProd], o: `Mat em ${cidadeMat.city}`, d: `Venda em ${cidadeVenda.city}`, c: cidadeMat.sell_price_min, v: Math.round(cidadeVenda.sell_price_min * (1-TAXA)), l: Math.round(lucro), r: roi.toFixed(1), cat: itemBase.cat });
+                        if (categoria === 'flip') {
+                            const compra = dataAPI.filter(p => p.item_id === idProd && p.city !== venda.city && p.quality === venda.quality && p.sell_price_min > 0)
+                                                 .sort((a,b) => a.sell_price_min - b.sell_price_min)[0];
+                            if (compra) {
+                                infoCompra = { custo: compra.sell_price_min, cidade: compra.city, msg: "Flip direto" };
                             }
-                        });
+                        } else {
+                            const idMat = idProd.replace(itemBase.id, itemBase.mat);
+                            const mat = dataAPI.filter(p => p.item_id === idMat && p.sell_price_min > 0)
+                                               .sort((a,b) => a.sell_price_min - b.sell_price_min)[0];
+                            if (mat) {
+                                infoCompra = { 
+                                    custo: mat.sell_price_min * itemBase.req, 
+                                    cidade: mat.city, 
+                                    msg: `${itemBase.req}x ${itemBase.mat} (${mat.sell_price_min}/un)` 
+                                };
+                            }
+                        }
+
+                        if (infoCompra.custo > 0) {
+                            if (venda.sell_price_min > (infoCompra.custo * 2.5)) return; 
+                            resultados.push({
+                                id: idProd, n: `${itemBase.name} T${t}${iEnch > 0 ? '.'+iEnch : ''}`,
+                                o: infoCompra.cidade, d: venda.city,
+                                c_bruto: infoCompra.custo, v_bruto: venda.sell_price_min,
+                                details: infoCompra.msg, t: venda.sell_price_min_date, q: venda.quality
+                            });
+                        }
                     });
-                }
+                });
             });
         });
 
-        res.json(resultados.sort((a, b) => b.r - a.r).slice(0, 100));
+        res.json(resultados);
     } catch (e) { res.status(500).json([]); }
 });
 
-app.listen(PORT, () => console.log("Motor de Categorias Online"));
+app.listen(PORT, () => console.log("Servidor V3.1 Pronto"));
