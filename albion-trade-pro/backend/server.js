@@ -1,44 +1,11 @@
-const express = require('express');
-const axios = require('axios');
-const cors = require('cors');
-const fs = require('fs');
-const path = require('path');
-
-const app = express();
-const PORT = process.env.PORT || 10000;
-app.use(cors(), express.json());
-
-const baseItems = JSON.parse(fs.readFileSync(path.join(__dirname, 'items.json'), 'utf8'));
-
-const chunkArray = (array, size) => {
-    const chunked = [];
-    for (let i = 0; i < array.length; i += size) chunked.push(array.slice(i, i + size));
-    return chunked;
-};
+// ... (mantenha as importações e configurações iniciais)
 
 app.get('/scanner', async (req, res) => {
     const categoria = req.query.cat || 'flip';
     try {
-        const itensFiltrados = baseItems.filter(i => {
-            if (categoria === 'black') return i.cat === 'flip' || i.cat === 'craft';
-            return i.cat === categoria;
-        });
+        // ... (mantenha a lógica de filtro de categoria e geração de IDs)
 
-        let idsParaBuscar = new Set();
-        itensFiltrados.forEach(item => {
-            [4, 5, 6, 7, 8].forEach(t => {
-                ["", "@1", "@2", "@3", "@4"].forEach(v => {
-                    idsParaBuscar.add(`T${t}_${item.id}${v}`);
-                    if (item.mat) idsParaBuscar.add(`T${t}_${item.mat}${v}`);
-                });
-            });
-        });
-
-        const chunks = chunkArray(Array.from(idsParaBuscar), 180);
-        const promises = chunks.map(chunk => 
-            axios.get(`https://west.albion-online-data.com/api/v2/stats/prices/${chunk.join(',')}?locations=Caerleon,Black Market,Martlock,Bridgewatch,Lymhurst,FortSterling,Thetford`)
-        );
-
+        // Busca na API (Mantenha o sistema de Chunks/Lotes)
         const responses = await Promise.all(promises);
         const dataAPI = responses.flatMap(r => r.data);
 
@@ -51,6 +18,8 @@ app.get('/scanner', async (req, res) => {
 
                     precosProd.forEach(venda => {
                         let infoCompra = { custo: 0, cidade: "", msg: "" };
+                        
+                        // Lógica de Preço de Compra
                         if (categoria === 'flip' || categoria === 'black') {
                             const compra = dataAPI.filter(p => p.item_id === idProd && p.city !== venda.city && p.sell_price_min > 0)
                                                  .sort((a,b) => a.sell_price_min - b.sell_price_min)[0];
@@ -61,9 +30,15 @@ app.get('/scanner', async (req, res) => {
                             if (mat) infoCompra = { custo: mat.sell_price_min * itemBase.req, cidade: mat.city, msg: `${itemBase.req}x ${itemBase.mat}` };
                         }
 
-                        if (infoCompra.custo > 0 && venda.sell_price_min < infoCompra.custo * 10) {
+                        if (infoCompra.custo > 0) {
+                            // --- NOVO FILTRO ANTI-TROLL (v1.4) ---
+                            // Se o preço de venda for maior que 4x o custo (Lucro > 300%), ignoramos.
+                            if (venda.sell_price_min > (infoCompra.custo * 4)) return; 
+
                             resultados.push({
-                                id: idProd, n: `${itemBase.name} T${t}${iEnch > 0 ? '.'+iEnch : ''}`,
+                                id: idProd, 
+                                tier: t, // Adicionado para facilitar filtro no front
+                                n: `${itemBase.name} T${t}${iEnch > 0 ? '.'+iEnch : ''}`,
                                 o: infoCompra.cidade, d: venda.city,
                                 c_bruto: infoCompra.custo, v_bruto: venda.sell_price_min,
                                 details: infoCompra.msg, t: venda.sell_price_min_date, q: venda.quality
@@ -76,5 +51,4 @@ app.get('/scanner', async (req, res) => {
         res.json(resultados);
     } catch (e) { res.status(500).json([]); }
 });
-
-app.listen(PORT, () => console.log("Servidor v1.0 Ativo"));
+// ...
