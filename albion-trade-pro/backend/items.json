@@ -1,15 +1,9 @@
 [
-  { "id": "2H_SWORD", "name": "Montante", "cat": "flip" },
-  { "id": "2H_BOW", "name": "Arco Longo", "cat": "flip" },
-  { "id": "ARMOR_LEATHER_SET1", "name": "Casaco Mercenário", "cat": "flip" },
-  { "id": "BAG", "name": "Bolsa", "cat": "flip" },
-
-  { "id": "PLANKS", "name": "Tábua", "cat": "refino", "mat": "WOOD", "req": 2 },
-  { "id": "METALBAR", "name": "Barra", "cat": "refino", "mat": "ORE", "req": 2 },
-
-  { "id": "FOOD_STEW", "name": "Guisado", "cat": "cozinha", "mat": "RAW_BEEF", "req": 36 },
-  { "id": "POTION_HEAL", "name": "Poção Cura", "cat": "cozinha", "mat": "ALCOHOL", "req": 12 },
-
-  { "id": "ARMOR_PLATE_SET1", "name": "Peitoral Placa", "cat": "craft", "mat": "METALBAR", "req": 16 },
-  { "id": "CAPE", "name": "Capa", "cat": "craft", "mat": "CLOTH", "req": 6 }
+  { "id": "2H_SWORD", "name": "Montante", "cat": "flip", "w": 5.8 },
+  { "id": "2H_BOW", "name": "Arco Longo", "cat": "flip", "w": 4.5 },
+  { "id": "ARMOR_PLATE_SET1", "name": "Peitoral Placa", "cat": "craft", "mat": "METALBAR", "req": 16, "w": 12.0 },
+  { "id": "CAPE", "name": "Capa", "cat": "craft", "mat": "CLOTH", "req": 6, "w": 0.5 },
+  { "id": "BAG", "name": "Bolsa", "cat": "flip", "w": 1.5 },
+  { "id": "PLANKS", "name": "Tábua", "cat": "refino", "mat": "WOOD", "req": 2, "w": 0.3 },
+  { "id": "METALBAR", "name": "Barra", "cat": "refino", "mat": "ORE", "req": 2, "w": 0.3 }
 ]
