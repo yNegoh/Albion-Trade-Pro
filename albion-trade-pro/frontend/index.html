@@ -3,131 +3,75 @@
 <head>
     <meta charset="UTF-8"><title>Albion Trader Pro</title>
     <style>
-        :root { --bg: #0f172a; --card: #1e293b; --accent: #22c55e; --gold: #fbbf24; }
-        * { box-sizing: border-box; }
-        body { background: var(--bg); color: white; font-family: sans-serif; margin: 0; display: flex; height: 100vh; overflow: hidden; }
-        
-        /* Sidebar */
+        :root { --bg: #0f172a; --card: #1e293b; --accent: #22c55e; }
+        body { background: var(--bg); color: white; font-family: sans-serif; margin: 0; display: flex; height: 100vh; }
         .sidebar { width: 240px; background: var(--card); padding: 20px; border-right: 1px solid #334155; }
         .nav-item { display: block; width: 100%; padding: 12px; margin-bottom: 5px; border-radius: 8px; background: transparent; border: none; color: #94a3b8; text-align: left; cursor: pointer; font-weight: bold; }
         .nav-item.active { background: #22c55e; color: white; }
-
-        /* Main Content */
-        .main { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; }
-        
-        /* Ferramentas do Topo */
-        .top-tools { display: flex; gap: 15px; background: var(--card); padding: 15px; border-radius: 12px; margin-bottom: 15px; align-items: center; border: 1px solid #334155; flex-wrap: wrap; }
-        .tool-group { display: flex; align-items: center; gap: 8px; background: #0f172a; padding: 6px 12px; border-radius: 8px; border: 1px solid #334155; }
-        label { font-size: 0.75rem; font-weight: bold; color: var(--accent); }
-        input[type="number"] { background: none; border: none; color: white; width: 50px; font-weight: bold; outline: none; }
-
-        /* Tabela Profissional com Filtros no Header */
-        .table-container { background: var(--card); border-radius: 10px; overflow: hidden; border: 1px solid #334155; }
-        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        .main { flex: 1; padding: 25px; overflow-y: auto; }
+        .filter-bar { display: flex; gap: 10px; margin-bottom: 20px; background: #1e293b; padding: 15px; border-radius: 10px; }
+        select, input { background: #0f172a; color: white; border: 1px solid #334155; padding: 10px; border-radius: 5px; }
+        table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 10px; overflow: hidden; }
         th, td { padding: 12px; text-align: left; border-bottom: 1px solid #334155; }
-        
-        /* Estilo dos Filtros no Header */
-        th { background: #1e293b; color: var(--accent); vertical-align: top; }
-        .header-label { display: block; font-size: 0.65rem; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.5px; color: #94a3b8; }
-        th select { width: 100%; background: #0f172a; color: white; border: 1px solid #475569; padding: 4px; border-radius: 4px; font-size: 0.75rem; outline: none; cursor: pointer; }
-        th select:hover { border-color: var(--accent); }
-
+        th { color: var(--accent); text-transform: uppercase; font-size: 0.7rem; }
         .lucro { color: var(--accent); font-weight: bold; }
-        .city-tag { color: #fff; font-weight: bold; }
-        .details-text { font-size: 0.75rem; color: #94a3b8; }
-        .btn-update { background: var(--accent); color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.2s; }
-        .btn-update:hover { transform: scale(1.02); opacity: 0.9; }
     </style>
 </head>
 <body>
     <div class="sidebar">
-        <h2 style="color:var(--accent); margin-bottom: 30px;">Albion Trader <small style="color:gray; display:block; font-size: 0.6rem;">Versão 3.1 Pro</small></h2>
-        <button class="nav-item active" onclick="mudarCat('flip', this)">⚔️ Flip Equipamento</button>
-        <button class="nav-item" onclick="mudarCat('refino', this)">🪵 Refino Recursos</button>
-        <button class="nav-item" onclick="mudarCat('cozinha', this)">🥧 Cozinha/Alquimia</button>
-        <button class="nav-item" onclick="mudarCat('craft', this)">🛠️ Craft Geral</button>
+        <h2 style="color:var(--accent)">Albion Trader</h2>
+        <p style="font-size:0.7rem; color:gray">CATEGORIAS</p>
+        <button class="nav-item active" onclick="mudarCat('equip', this)">⚔️ Equipamentos</button>
+        <button class="nav-item" onclick="mudarCat('recurso', this)">🪵 Recursos (Refino)</button>
+        <button class="nav-item" onclick="mudarCat('comida', this)">🥧 Comida/Poção</button>
+        <button class="nav-item" onclick="mudarCat('craft', this)">🛠️ Craft (Bolsas/Capas)</button>
+        <hr style="border:0; border-top:1px solid #334155; margin:15px 0">
+        <button class="nav-item" onclick="mudarCat('top', this)">🏆 TOP LUCROS</button>
     </div>
 
     <div class="main">
-        <!-- TOP TOOLS -->
-        <div class="top-tools">
-            <div class="tool-group">
-                <label>👑 PREMIUM</label> <input type="checkbox" id="checkPre" checked onchange="render()">
-            </div>
-            <div class="tool-group">
-                <label>🔄 RETORNO</label>
-                <select id="selRRR" onchange="render()" style="background:none; border:none; color:white; font-size:0.8rem; cursor:pointer">
-                    <option value="0">0%</option>
-                    <option value="0.152" selected>15.2% (Cidade s/ foco)</option>
-                    <option value="0.437">43.7% (Cidade c/ foco)</option>
-                </select>
-            </div>
-            <div class="tool-group">
-                <label>🏪 TAXA LOJA</label>
-                <input type="number" id="taxaLoja" value="500" oninput="render()">
-            </div>
-            <button class="btn-update" onclick="mudarCat(ultimaCat)" style="margin-left:auto">🔄 ATUALIZAR</button>
+        <div class="filter-bar">
+            <select id="selOrigem" onchange="render()"><option value="">Cidade Compra: Todas</option></select>
+            <select id="selDestino" onchange="render()"><option value="">Cidade Venda: Todas</option></select>
+            <input type="text" id="fBusca" placeholder="Filtrar item..." oninput="render()">
         </div>
-
-        <div id="status-msg" style="color:var(--accent); font-weight:bold; margin-bottom:10px; font-size: 0.9rem;">Pronto para analisar...</div>
-
-        <!-- TABELA -->
-        <div class="table-container">
-            <table>
-                <thead>
-                    <tr>
-                        <th style="width: 200px;">
-                            <span class="header-label">Filtrar Nome</span>
-                            <input type="text" id="fNome" placeholder="Ex: T6.1" oninput="render()" style="width:100%; background:#0f172a; border:1px solid #475569; color:white; padding:4px; border-radius:4px; font-size:0.75rem;">
-                        </th>
-                        <th>
-                            <span class="header-label">Compra em</span>
-                            <select id="selO" onchange="render()"></select>
-                        </th>
-                        <th>
-                            <span class="header-label">Venda em</span>
-                            <select id="selD" onchange="render()"></select>
-                        </th>
-                        <th><span class="header-label">Custo</span>Total</th>
-                        <th><span class="header-label">Venda</span>Líquida</th>
-                        <th><span class="header-label">Resultado</span>Lucro Real</th>
-                        <th><span class="header-label">Margem</span>ROI</th>
-                        <th><span class="header-label">Idade</span>Visto</th>
-                    </tr>
-                </thead>
-                <tbody id="corpo"></tbody>
-            </table>
-        </div>
+        <div id="msg" style="color:var(--accent); font-weight:bold; margin-bottom:10px">Selecione uma categoria...</div>
+        <table id="tabela">
+            <thead>
+                <tr><th>Item</th><th>Origem</th><th>Destino</th><th>Compra</th><th>Venda Líq</th><th>Lucro</th><th>ROI</th></tr>
+            </thead>
+            <tbody id="corpo"></tbody>
+        </table>
     </div>
 
     <script>
         const API = "https://albion-trade-pro-ogaq.onrender.com/scanner";
-        const Q_MAP = { 1: "Normal", 2: "Bom", 3: "Excepcional", 4: "Excelente" };
         let dados = [];
-        let ultimaCat = 'flip';
+        let catAtual = 'equip';
 
         async function mudarCat(cat, btn) {
-            ultimaCat = cat;
-            if(btn) {
-                document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-            }
-            const m = document.getElementById('status-msg');
-            m.innerText = "⏳ Sincronizando dados com o Albion Data Project...";
+            catAtual = cat;
+            document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            
+            const m = document.getElementById('msg');
+            m.innerText = `⏳ Carregando ${cat}...`;
+            
             try {
                 const r = await fetch(`${API}?cat=${cat}`);
                 dados = await r.json();
-                m.innerText = `✅ ${dados.length} oportunidades em tempo real encontradas!`;
+                m.innerText = `✅ ${dados.length} itens encontrados em ${cat}`;
                 popularCidades();
                 render();
-            } catch (e) { m.innerText = "❌ Servidor offline. Tente em instantes."; }
+            } catch (e) { m.innerText = "❌ Erro ao carregar categoria."; }
         }
 
         function popularCidades() {
-            const cidades = ["Martlock", "Lymhurst", "Bridgewatch", "FortSterling", "Thetford", "Caerleon"];
-            const sO = document.getElementById('selO'), sD = document.getElementById('selD');
-            sO.innerHTML = '<option value="">Qualquer</option>';
-            sD.innerHTML = '<option value="">Qualquer</option>';
+            const cidades = ["Caerleon", "Martlock", "Bridgewatch", "Lymhurst", "FortSterling", "Thetford"];
+            const sO = document.getElementById('selOrigem');
+            const sD = document.getElementById('selDestino');
+            sO.innerHTML = '<option value="">Cidade Compra: Todas</option>';
+            sD.innerHTML = '<option value="">Cidade Venda: Todas</option>';
             cidades.forEach(c => {
                 sO.innerHTML += `<option value="${c}">${c}</option>`;
                 sD.innerHTML += `<option value="${c}">${c}</option>`;
@@ -135,52 +79,31 @@
         }
 
         function render() {
-            const query = document.getElementById('fNome').value.toLowerCase();
-            const isPre = document.getElementById('checkPre').checked;
-            const rrr = parseFloat(document.getElementById('selRRR').value);
-            const taxaUso = parseInt(document.getElementById('taxaLoja').value) || 0;
-            const org = document.getElementById('selO').value;
-            const dest = document.getElementById('selD').value;
-            const taxaMkt = isPre ? 0.065 : 0.105;
+            const busca = document.getElementById('fBusca').value.toLowerCase();
+            const org = document.getElementById('selOrigem').value;
+            const dest = document.getElementById('selDestino').value;
             const corpo = document.getElementById('corpo');
             let html = "";
 
             dados.filter(d => {
-                const oFormat = d.o.replace("Mat em ", "");
-                return d.n.toLowerCase().includes(query) && 
-                       (org === "" || oFormat === org) && 
-                       (dest === "" || d.d === dest);
+                return d.n.toLowerCase().includes(busca) && 
+                       (org === "" || d.o.includes(org)) &&
+                       (dest === "" || d.d.includes(dest));
             }).forEach(d => {
-                const custoMaterial = ultimaCat === 'flip' ? d.c_bruto : d.c_bruto * (1 - rrr);
-                const custoFinal = Math.round(custoMaterial + (taxaUso * 0.1));
-                const vendaLiq = Math.round(d.v_bruto * (1 - taxaMkt));
-                const lucro = vendaLiq - custoFinal;
-                const roi = ((lucro / custoFinal) * 100).toFixed(1);
-
-                if (lucro <= 0) return;
-
-                const diff = Math.floor((Date.now() - new Date(d.t)) / 60000);
-                const tempo = diff < 60 ? (diff < 0 ? 0 : diff) + 'm' : Math.floor(diff/60) + 'h';
-
                 html += `<tr>
-                    <td>
-                        <div style="display:flex;align-items:center;gap:10px">
-                            <img src="https://render.albiononline.com/v1/item/${d.id}.png?quality=${d.q}" width="35" style="border-radius:4px">
-                            <div><b>${d.n}</b><br><span style="color:var(--gold); font-size:0.7rem">${Q_MAP[d.q]}</span></div>
-                        </div>
-                    </td>
-                    <td><span class="city-tag">${d.o}</span><br><span class="details-text">${d.details}</span></td>
-                    <td><b>${d.d}</b></td>
-                    <td>${custoFinal.toLocaleString()}</td>
-                    <td>${vendaLiq.toLocaleString()}</td>
-                    <td class="lucro">+ ${lucro.toLocaleString()}</td>
-                    <td style="font-weight:bold">${roi}%</td>
-                    <td style="color:#94a3b8; font-size:0.75rem">${tempo}</td>
+                    <td><b>${d.n}</b></td>
+                    <td>${d.o}</td>
+                    <td>${d.d}</td>
+                    <td>${d.c.toLocaleString()}</td>
+                    <td>${d.v.toLocaleString()}</td>
+                    <td class="lucro">+ ${d.l.toLocaleString()}</td>
+                    <td style="background:rgba(34,197,94,0.1); font-weight:bold">${d.r}%</td>
                 </tr>`;
             });
             corpo.innerHTML = html;
         }
-        window.onload = () => mudarCat('flip');
+
+        window.onload = () => mudarCat('equip', document.querySelector('.nav-item'));
     </script>
 </body>
 </html>
