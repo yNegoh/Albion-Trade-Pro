@@ -1,90 +1,90 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-    <meta charset="UTF-8"><title>Albion Trader Pro V4</title>
+    <meta charset="UTF-8"><title>Albion Trader Pro v1.0</title>
     <style>
-        :root { --bg: #0f172a; --card: #1e293b; --accent: #22c55e; --gold: #fbbf24; --danger: #ef4444; }
+        :root { --bg: #0f172a; --card: #1e293b; --accent: #22c55e; --gold: #fbbf24; }
         * { box-sizing: border-box; }
-        body { background: var(--bg); color: white; font-family: sans-serif; margin: 0; display: flex; height: 100vh; overflow: hidden; }
         
-        .sidebar { width: 260px; background: var(--card); padding: 20px; border-right: 1px solid #334155; display: flex; flex-direction: column; }
-        .nav-item { display: block; width: 100%; padding: 12px; margin-bottom: 8px; border-radius: 8px; background: transparent; border: none; color: #94a3b8; text-align: left; cursor: pointer; font-weight: bold; transition: 0.2s; }
-        .nav-item:hover { background: #334155; }
+        /* Correção da Estrutura para permitir Scroll */
+        html, body { height: 100%; margin: 0; background: var(--bg); color: white; font-family: sans-serif; overflow: hidden; }
+        
+        .app-container { display: flex; height: 100vh; width: 100vw; }
+
+        .sidebar { width: 260px; background: var(--card); padding: 20px; border-right: 1px solid #334155; flex-shrink: 0; }
+        
+        /* Área Principal com Scroll funcional */
+        .main { flex-grow: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; }
+
+        .nav-item { display: block; width: 100%; padding: 12px; margin-bottom: 8px; border-radius: 8px; background: transparent; border: none; color: #94a3b8; text-align: left; cursor: pointer; font-weight: bold; }
         .nav-item.active { background: var(--accent); color: white; }
         .nav-item.black-btn { border: 1px solid var(--gold); color: var(--gold); margin-top: 10px; }
         .nav-item.black-btn.active { background: var(--gold); color: #000; }
 
-        .main { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; }
-        .top-tools { display: flex; gap: 15px; background: var(--card); padding: 15px; border-radius: 12px; margin-bottom: 15px; align-items: center; border: 1px solid #334155; }
+        .top-tools { display: flex; gap: 15px; background: var(--card); padding: 15px; border-radius: 12px; margin-bottom: 15px; align-items: center; border: 1px solid #334155; flex-shrink: 0; }
         .tool-group { display: flex; align-items: center; gap: 8px; background: #0f172a; padding: 6px 12px; border-radius: 8px; border: 1px solid #334155; }
         
-        input, select { background: none; border: none; color: white; font-weight: bold; outline: none; }
-        input[type="number"] { width: 60px; }
-
-        .table-container { background: var(--card); border-radius: 10px; overflow: hidden; border: 1px solid #334155; }
+        .table-container { background: var(--card); border-radius: 10px; border: 1px solid #334155; width: 100%; }
         table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
         th, td { padding: 12px; text-align: left; border-bottom: 1px solid #334155; }
-        th { background: #1e293b; color: #94a3b8; cursor: pointer; text-transform: uppercase; font-size: 0.7rem; }
-        th:hover { color: white; }
+        th { background: #1e293b; color: #94a3b8; position: sticky; top: 0; z-index: 10; cursor: pointer; }
 
         .tier-badge { padding: 3px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; background: #475569; margin-right: 5px; }
         .t8 { background: #5b21b6; } .t7 { background: #b91c1c; } .t6 { background: #ea580c; }
-        
         .lucro { color: var(--accent); font-weight: bold; }
-        .roi-high { color: var(--gold); }
-        .city-tag { font-weight: bold; color: #cbd5e1; }
-        .btn-update { background: var(--accent); color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; margin-left: auto; }
     </style>
 </head>
 <body>
-    <div class="sidebar">
-        <h2 style="color:var(--accent); margin-bottom: 20px;">Albion Trader <small style="display:block; font-size: 0.6rem; color:gray">PRO V4.0</small></h2>
-        <button class="nav-item active" onclick="mudarCat('flip', this)">⚔️ Flip Equipamento</button>
-        <button class="nav-item" onclick="mudarCat('refino', this)">🪵 Refino Recursos</button>
-        <button class="nav-item" onclick="mudarCat('craft', this)">🛠️ Craft Geral</button>
-        <button class="nav-item black-btn" onclick="mudarCat('black', this)">🏴 Oportunidades Black</button>
-    </div>
-
-    <div class="main">
-        <div class="top-tools">
-            <div class="tool-group"><label style="font-size:0.7rem; color:var(--accent)">PREMIUM</label><input type="checkbox" id="checkPre" checked onchange="render()"></div>
-            <div class="tool-group">
-                <label style="font-size:0.7rem; color:var(--accent)">RETORNO</label>
-                <select id="selRRR" onchange="render()">
-                    <option value="0">0%</option>
-                    <option value="0.152" selected>15.2%</option>
-                    <option value="0.437">43.7%</option>
-                </select>
-            </div>
-            <div class="tool-group"><label style="font-size:0.7rem; color:var(--accent)">TAXA USO</label><input type="number" id="taxaLoja" value="500" oninput="render()"></div>
-            <input type="text" id="fNome" placeholder="🔍 Filtrar item..." oninput="render()" style="background:var(--card); border:1px solid #334155; padding:8px; border-radius:8px; width:200px; margin-left: 10px;">
-            <button class="btn-update" onclick="mudarCat(ultimaCat)">🔄 ATUALIZAR</button>
+    <div class="app-container">
+        <div class="sidebar">
+            <h2 style="color:var(--accent);">Trader Pro <small style="display:block; font-size: 0.6rem; color:gray">v1.0 Estável</small></h2>
+            <button class="nav-item active" onclick="mudarCat('flip', this)">⚔️ Flip Equipamento</button>
+            <button class="nav-item" onclick="mudarCat('refino', this)">🪵 Refino Recursos</button>
+            <button class="nav-item" onclick="mudarCat('craft', this)">🛠️ Craft Geral</button>
+            <button class="nav-item black-btn" onclick="mudarCat('black', this)">🏴 Oportunidades Black</button>
         </div>
 
-        <div id="status-msg" style="margin-bottom:10px; font-size: 0.8rem; color: var(--accent)">Aguardando comando...</div>
+        <div class="main">
+            <div class="top-tools">
+                <div class="tool-group"><label>PREMIUM</label><input type="checkbox" id="checkPre" checked onchange="render()"></div>
+                <div class="tool-group">
+                    <label>RETORNO</label>
+                    <select id="selRRR" onchange="render()" style="background:none; color:white; font-weight:bold;">
+                        <option value="0">0%</option>
+                        <option value="0.152" selected>15.2%</option>
+                        <option value="0.437">43.7%</option>
+                    </select>
+                </div>
+                <input type="text" id="fNome" placeholder="🔍 Filtrar item..." oninput="render()" style="background:var(--card); border:1px solid #334155; color:white; padding:8px; border-radius:8px; width:200px;">
+                <button onclick="mudarCat(ultimaCat)" style="background:var(--accent); color:white; border:none; padding:10px; border-radius:8px; cursor:pointer; font-weight:bold; margin-left:auto;">🔄 ATUALIZAR</button>
+            </div>
 
-        <div class="table-container">
-            <table>
-                <thead>
-                    <tr>
-                        <th onclick="ordenar('n')">Item</th>
-                        <th>Origem / Custo</th>
-                        <th>Destino</th>
-                        <th onclick="ordenar('c_final')">Custo Total</th>
-                        <th onclick="ordenar('v_liq')">Venda Líq.</th>
-                        <th onclick="ordenar('lucro')">Lucro Est. ↓</th>
-                        <th onclick="ordenar('roi')">ROI %</th>
-                        <th onclick="ordenar('diff')">Idade</th>
-                    </tr>
-                </thead>
-                <tbody id="corpo"></tbody>
-            </table>
+            <div id="status-msg" style="margin-bottom:10px; color: var(--accent); font-size:0.9rem;">Pronto.</div>
+
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th onclick="ordenar('n')">Item</th>
+                            <th>Origem</th>
+                            <th>Destino</th>
+                            <th onclick="ordenar('c_final')">Custo</th>
+                            <th onclick="ordenar('v_liq')">Venda Liq</th>
+                            <th onclick="ordenar('lucro')">Lucro ↓</th>
+                            <th onclick="ordenar('roi')">ROI %</th>
+                            <th>Idade</th>
+                        </tr>
+                    </thead>
+                    <tbody id="corpo"></tbody>
+                </table>
+            </div>
         </div>
     </div>
 
     <script>
         const API = "https://albion-trade-pro-ogaq.onrender.com/scanner";
-        const Q_MAP = { 1: "Normal", 2: "Bom", 3: "Excep.", 4: "Excel." };
+        // CORREÇÃO: Nomes completos para as qualidades
+        const Q_MAP = { 1: "Normal", 2: "Bom", 3: "Excepcional", 4: "Excelente" };
         let dados = [];
         let ultimaCat = 'flip';
         let ordemCrescente = false;
@@ -95,14 +95,13 @@
                 document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
             }
-            const m = document.getElementById('status-msg');
-            m.innerText = "⏳ Consultando base de dados (T4 até T8.4)...";
+            document.getElementById('status-msg').innerText = "⏳ Buscando dados do servidor...";
             try {
                 const r = await fetch(`${API}?cat=${cat}`);
                 dados = await r.json();
-                m.innerText = `✅ ${dados.length} itens analisados com sucesso!`;
+                document.getElementById('status-msg').innerText = `✅ ${dados.length} itens carregados.`;
                 render();
-            } catch (e) { m.innerText = "❌ Erro ao conectar com o servidor."; }
+            } catch (e) { document.getElementById('status-msg').innerText = "❌ Erro de conexão."; }
         }
 
         function ordenar(campo) {
@@ -117,17 +116,12 @@
         function render(apenasTabela = false) {
             const isPre = document.getElementById('checkPre').checked;
             const rrr = parseFloat(document.getElementById('selRRR').value);
-            const taxaUso = parseInt(document.getElementById('taxaLoja').value) || 0;
             const query = document.getElementById('fNome').value.toLowerCase();
             const taxaMkt = isPre ? 0.065 : 0.105;
             const corpo = document.getElementById('corpo');
             
-            let html = "";
-            
-            // Processa cálculos e filtros
             let processados = dados.map(d => {
-                const custoBase = (ultimaCat === 'refino' || ultimaCat === 'craft') ? d.c_bruto * (1 - rrr) : d.c_bruto;
-                const c_final = Math.round(custoBase + (taxaUso * 0.1));
+                const c_final = Math.round((ultimaCat === 'flip' ? d.c_bruto : d.c_bruto * (1 - rrr)));
                 const v_liq = Math.round(d.v_bruto * (1 - taxaMkt));
                 const lucro = v_liq - c_final;
                 const roi = parseFloat(((lucro / c_final) * 100).toFixed(1));
@@ -135,18 +129,13 @@
                 return { ...d, c_final, v_liq, lucro, roi, diff };
             });
 
-            // Filtro específico para o Botão Black
-            if (ultimaCat === 'black') {
-                processados = processados.filter(p => (p.d === 'Black Market' || p.d === 'Caerleon') && p.roi > 15);
-            }
-
-            // Ordenação padrão por lucro se não foi clicado em nada
+            if (ultimaCat === 'black') processados = processados.filter(p => (p.d === 'Black Market' || p.d === 'Caerleon') && p.roi > 10);
             if (!apenasTabela) processados.sort((a, b) => b.lucro - a.lucro);
 
+            let html = "";
             processados.forEach(d => {
                 if (query && !d.n.toLowerCase().includes(query)) return;
                 if (d.lucro <= 0) return;
-
                 const tClass = d.n.includes("T8") ? "t8" : (d.n.includes("T7") ? "t7" : (d.n.includes("T6") ? "t6" : ""));
                 const tempo = d.diff < 60 ? d.diff + 'm' : Math.floor(d.diff/60) + 'h';
 
@@ -158,17 +147,16 @@
                         </div>
                     </td>
                     <td><span class="city-tag">${d.o}</span><br><small style="color:gray">${d.details}</small></td>
-                    <td><b style="${d.d === 'Black Market' ? 'color:var(--gold)' : ''}">${d.d}</b></td>
+                    <td><b style="${d.d.includes('Black') ? 'color:var(--gold)' : ''}">${d.d}</b></td>
                     <td>${d.c_final.toLocaleString()}</td>
                     <td>${d.v_liq.toLocaleString()}</td>
                     <td class="lucro">+ ${d.lucro.toLocaleString()}</td>
-                    <td class="${d.roi > 30 ? 'roi-high' : ''}">${d.roi}%</td>
-                    <td style="font-size:0.7rem; color: #94a3b8">${tempo}</td>
+                    <td style="font-weight:bold; color:${d.roi > 20 ? 'var(--gold)' : 'white'}">${d.roi}%</td>
+                    <td style="font-size:0.7rem; color:gray">${tempo}</td>
                 </tr>`;
             });
             corpo.innerHTML = html;
         }
-
         window.onload = () => mudarCat('flip');
     </script>
 </body>
